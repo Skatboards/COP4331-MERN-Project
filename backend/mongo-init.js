@@ -1,9 +1,7 @@
 
 const gameDb = db.getSiblingDB('GameDB');
 
-// ========================================
 // CREATE COLLECTIONS
-// ========================================
 
 if (!gameDb.getCollectionNames().includes('users')) {
   gameDb.createCollection('users');
@@ -17,9 +15,7 @@ if (!gameDb.getCollectionNames().includes('boardAttempts')) {
   gameDb.createCollection('boardAttempts');
 }
 
-// ========================================
 // CREATE UNIQUE INDEXES
-// ========================================
 
 gameDb.users.createIndex(
   { username: 1 },
@@ -41,13 +37,7 @@ gameDb.boardAttempts.createIndex(
   { unique: true }
 );
 
-// ========================================
 // SAMPLE USERS
-// ========================================
-
-// Placeholder hashes are NOT valid login credentials.
-// Replace these through your registration/authentication
-// code before testing login.
 
 const users = [
   {
@@ -114,9 +104,7 @@ users.forEach(user => {
   }
 });
 
-// ========================================
 // SAMPLE BOARDS
-// ========================================
 
 const boards = [
   {
@@ -199,10 +187,8 @@ boards.forEach(board => {
   }
 });
 
-
- // ========================================
  // SAMPLE BOARD ATTEMPTS
- // ========================================
+
 
 const sampleAttempts = [
   {
