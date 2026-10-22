@@ -13,6 +13,10 @@ if (!gameDb.getCollectionNames().includes('boards')) {
   gameDb.createCollection('boards');
 }
 
+if (!gameDb.getCollectionNames().includes('boardAttempts')) {
+  gameDb.createCollection('boardAttempts');
+}
+
 // ========================================
 // CREATE UNIQUE INDEXES
 // ========================================
@@ -29,6 +33,11 @@ gameDb.users.createIndex(
 
 gameDb.boards.createIndex(
   { seed: 1 },
+  { unique: true }
+);
+
+gameDb.boardAttempts.createIndex(
+  { userId: 1, boardId: 1 },
   { unique: true }
 );
 
@@ -190,6 +199,84 @@ boards.forEach(board => {
   }
 });
 
+
+ // ========================================
+ // SAMPLE BOARD ATTEMPTS
+ // ========================================
+
+const sampleAttempts = [
+  {
+    username: 'alexrivera',
+    seed: 'daily-2026-10-20',
+    clicks: 18,
+    completed: true,
+    efficiency: 85.5,
+    status: 'won'
+  },
+  {
+    username: 'jamiechen',
+    seed: 'daily-2026-10-20',
+    clicks: 15,
+    completed: true,
+    efficiency: 91.2,
+    status: 'won'
+  },
+  {
+    username: 'taylormorgan',
+    seed: 'daily-2026-10-20',
+    clicks: 26,
+    completed: false,
+    efficiency: 0,
+    status: 'lost'
+  },
+  {
+    username: 'alexrivera',
+    seed: 'daily-2026-10-21',
+    clicks: 20,
+    completed: true,
+    efficiency: 82.5,
+    status: 'won'
+  }
+];
+
+sampleAttempts.forEach(attempt => {
+  const user = gameDb.users.findOne({
+    username: attempt.username
+  });
+
+  const board = gameDb.boards.findOne({
+    seed: attempt.seed
+  });
+
+  if (!user || !board) {
+    print(`Skipping attempt for ${attempt.username} on ${attempt.seed}`);
+    return;
+  }
+
+  const existingAttempt = gameDb.boardAttempts.findOne({
+    userId: user._id,
+    boardId: board._id
+  });
+
+  if (!existingAttempt) {
+    const now = new Date();
+
+    gameDb.boardAttempts.insertOne({
+      userId: user._id,
+      boardId: board._id,
+      clicks: attempt.clicks,
+      completed: attempt.completed,
+      efficiency: attempt.efficiency,
+      status: attempt.status,
+      completedAt: attempt.status === 'in_progress' ? null : now,
+      createdAt: now,
+      updatedAt: now
+    });
+  }
+});
+
+
 print('GameDB initialization completed.');
 print('Users: ' + gameDb.users.countDocuments({}));
 print('Boards: ' + gameDb.boards.countDocuments({}));
+print('Board Attempts: ' + gameDb.boardAttempts.countDocuments({}));
