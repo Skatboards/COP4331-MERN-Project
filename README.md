@@ -40,7 +40,7 @@ cp .env.example .env
 | Variable | Default | Description |
 | --- | --- | --- |
 | `CLIENT_PORT` | `5173` | Frontend port exposed on the host |
-| `SERVER_PORT` | `3000` | Express port exposed on the host |
+| `BACKEND_PORT` | `3000` | Express port exposed on the host |
 | `MONGO_DATABASE` | `mern_app` | MongoDB database name |
 | `MONGO_PORT` | `27017` | MongoDB port exposed on `127.0.0.1` |
 
@@ -87,12 +87,12 @@ npm run dev
 In another terminal, install and start the server:
 
 ```bash
-cd server
+cd backend
 npm ci
 npm run dev
 ```
 
-The Vite proxy currently targets the Compose service name `server`. `/api` requests from a client running directly on the host require a local proxy target such as `http://localhost:3000`.
+The Vite proxy currently targets the Compose service name `backend`. `/api` requests from a client running directly on the host require a local proxy target such as `http://localhost:3000`.
 
 ## Development commands
 
@@ -123,7 +123,7 @@ Automated client and server test scripts have not yet been configured.
 | `GET` | `/api/health` | Returns `{ "status": "ok" }` |
 | `GET` | `/users` | Returns the current placeholder users response |
 
-The server receives `MONGO_URI` from Compose, but application-level MongoDB access has not yet been implemented.
+The backend receives `MONGODB_URI` from Compose and connects with Mongoose.
 
 ## Database initialization
 
