@@ -1,1 +1,19 @@
+# Environment variables and secrets
 .env
+.env.*
+!.env.example
+
+# Python virtual environment
+.venv/
+venv/
+__pycache__/
+
+# Node.js dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Editor files
+.vscode/
+.idea/
