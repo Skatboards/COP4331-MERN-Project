@@ -9,7 +9,7 @@ on:
 jobs:
   quality:
     name: ${{ matrix.workspace }} quality
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     strategy:
       fail-fast: false
@@ -44,7 +44,7 @@ jobs:
 
   compose:
     name: Docker Compose
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: quality
     timeout-minutes: 15
 
