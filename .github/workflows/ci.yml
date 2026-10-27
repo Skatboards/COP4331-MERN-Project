@@ -76,3 +76,51 @@ jobs:
       - name: Stop services
         if: always()
         run: docker compose down --volumes --remove-orphans
+
+  deploy:
+    name: Deploy to droplet
+    # Only after a push to main, and only once every check above has passed
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [quality, compose]
+    runs-on: ubuntu-24.04
+    environment: production
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    timeout-minutes: 15
+
+    env:
+      DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+      DROPLET_USER: ${{ secrets.DROPLET_USER }}
+      DROPLET_APP_PATH: /home/mern/sweeple
+      # The droplet's public SSH host key, so the job only talks to that server
+      DROPLET_HOST_KEY: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP9HNw3Y+r+twBKVtDP0LnfkDK0IH/FsBhfB5yZnLGXG
+
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s %s\n' "$DROPLET_HOST" "$DROPLET_HOST_KEY" > ~/.ssh/known_hosts
+
+      - name: Pull main and rebuild the stack
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$DROPLET_USER@$DROPLET_HOST" \
+            "set -e
+             cd '$DROPLET_APP_PATH'
+             git fetch --prune origin main
+             git reset --hard origin/main
+             docker compose up -d --build --remove-orphans --wait --wait-timeout 300
+             docker image prune -f"
+
+      # Checked on the droplet itself (client port from its .env, through the
+      # Vite proxy to the backend). Switch to the public URL once nginx serves
+      # this stack (deploy/switch-site.sh new).
+      - name: Check the deployed stack
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$DROPLET_USER@$DROPLET_HOST" \
+            "curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors \
+               http://127.0.0.1:5173/api/health"

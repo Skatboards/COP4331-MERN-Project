@@ -5,6 +5,9 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Vite rejects requests for hostnames other than localhost; allow the
+    // deployed domain (DOMAIN in the droplet's .env, passed in by Compose)
+    allowedHosts: process.env.DOMAIN ? [process.env.DOMAIN] : [],
     watch: {
       usePolling: true,
     },

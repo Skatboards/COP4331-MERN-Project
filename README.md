@@ -107,21 +107,21 @@ npm run build
 npm run preview
 ```
 
-### Server
+### Backend
 
 ```bash
 npm run dev
 npm start
 ```
 
-Automated client and server test scripts have not yet been configured.
+Automated client and backend test scripts have not yet been configured.
 
 ## API
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | Returns `{ "status": "ok" }` |
-| `GET` | `/users` | Returns the current placeholder users response |
+| `GET` | `/api/ping` | Returns `{ "message": "Hello World" }` |
 
 The backend receives `MONGODB_URI` from Compose and connects with Mongoose.
 
@@ -129,18 +129,20 @@ The backend receives `MONGODB_URI` from Compose and connects with Mongoose.
 
 MongoDB mounts `mongo/init/` at `/docker-entrypoint-initdb.d`. The official image runs supported initialization files only when it creates a new, empty database volume.
 
-The initialization scripts referenced in [mongo/README.md](mongo/README.md) are not currently present in `mongo/init/`. Add them before relying on schema or seed initialization.
+`01-create-schema.js` creates the collections and unique indexes, and `02-seed-data.js` inserts sample data. See [mongo/README.md](mongo/README.md).
 
 ## Continuous integration
 
 The workflow in [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on pushes and pull requests targeting `main`. It:
 
-- Uses Node.js 24 for the client and server
+- Uses Node.js 24 for the client and backend
 - Installs dependencies and runs available lint, build, and test scripts
 - Validates the Compose configuration
 - Builds and starts all services
 - Checks the client, Express health endpoint, and Vite proxy
 - Captures service logs on failure and cleans up the stack
+
+After every check passes on a push to `main`, the `deploy` job SSHes into the DigitalOcean droplet, resets its checkout to `main`, and rebuilds the stack with `compose.yaml`. See [deploy/README.md](deploy/README.md) for droplet setup and the required repository secrets.
 
 ## Troubleshooting
 

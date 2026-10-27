@@ -3,6 +3,8 @@ services:
     build:
       context: ./client
     restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:-}
     ports:
       - "${CLIENT_PORT:-5173}:5173"
     volumes:
