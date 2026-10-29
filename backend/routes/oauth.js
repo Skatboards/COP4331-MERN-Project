@@ -84,6 +84,14 @@ async function findOrCreateUser(provider, profile) {
 
   const existing = await User.findOne({ email: profile.email });
   if (existing) {
+    if (!existing.emailVerified) {
+      // Whoever set this password never proved they own the address (someone
+      // could register the owner's email in advance), so drop it and any
+      // pending reset; the owner can set a password with "forgot password"
+      existing.passwordHash = undefined;
+      existing.passwordResetTokenHash = null;
+      existing.passwordResetExpires = null;
+    }
     existing.oauthAccounts = [...(existing.oauthAccounts || []), account];
     // The provider has confirmed the address
     existing.emailVerified = true;

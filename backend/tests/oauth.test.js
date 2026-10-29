@@ -161,6 +161,24 @@ describe('GET /api/auth/:provider/callback', () => {
       .expect(200);
   });
 
+  test('drops the password of an unverified account it links to', async () => {
+    // Someone registers the address first but can't open the email
+    await request(app)
+      .post('/api/auth/register')
+      .send({ username: 'squatter', email: 'grace@example.com', password: 'attacker-password' })
+      .expect(201);
+
+    const token = tokenFrom(await signIn('google'));
+    const me = await request(app).get('/api/users/me').set('Authorization', `Bearer ${token}`);
+    assert.equal(me.body.user.username, 'squatter');
+    assert.equal(me.body.user.emailVerified, true);
+
+    await request(app)
+      .post('/api/auth/login')
+      .send({ login: 'squatter', password: 'attacker-password' })
+      .expect(401);
+  });
+
   test('links both providers to one user', async () => {
     github.emails = [{ email: 'grace@example.com', primary: true, verified: true }];
     await signIn('google');
