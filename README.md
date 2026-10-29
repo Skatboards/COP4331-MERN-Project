@@ -16,6 +16,7 @@ Solve the daily minesweeper board! Every player gets the same board each day and
 .
 ├── client/          React and Vite frontend
 ├── backend/         Express API (see backend/openapi.yaml)
+├── bruno/           Bruno requests for testing the API
 ├── mongo/init/      MongoDB initialization directory
 ├── deploy/          Droplet deployment notes and scripts
 ├── docs/            System design, data flow, and ERD diagrams (Mermaid)
@@ -125,7 +126,7 @@ npm test
 
 ## API
 
-All requests and responses are JSON. The full description is in [backend/openapi.yaml](backend/openapi.yaml); import it into SwaggerHub to try the endpoints. Endpoints marked *login* need an `Authorization: Bearer <token>` header with the token from `POST /api/auth/login`.
+All requests and responses are JSON. The full description is in [backend/openapi.yaml](backend/openapi.yaml); import it into SwaggerHub to try the endpoints. The [bruno/](bruno/) folder has ready-made [Bruno](https://www.usebruno.com/) requests for register and login. Endpoints marked *login* need an `Authorization: Bearer <token>` header with the token from `POST /api/auth/login`.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
