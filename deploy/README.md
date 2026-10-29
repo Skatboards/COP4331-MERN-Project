@@ -42,6 +42,7 @@ It then checks `http://127.0.0.1:5173/api/health` on the droplet (the client por
 
   After editing `.env`, apply it with `docker compose up -d` in that folder.
 
+- For the API lab, Bruno must reach the API over HTTPS, which needs nginx switched to this stack (below). See [docs/api-lab-demo.md](../docs/api-lab-demo.md).
 - nginx on the droplet terminates HTTPS for `sweeple.natreese.dev` (Certbot certificate) and currently sends it to the older pm2 app on port 3000.
 
 ## Email

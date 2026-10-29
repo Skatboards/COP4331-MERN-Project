@@ -19,7 +19,7 @@ Solve the daily minesweeper board! Every player gets the same board each day and
 ├── bruno/           Bruno requests for testing the API
 ├── mongo/init/      MongoDB initialization directory
 ├── deploy/          Droplet deployment notes and scripts
-├── docs/            System design, data flow, and ERD diagrams (Mermaid)
+├── docs/            Diagrams (system design, data flow, ERD) and the API lab walkthrough
 ├── compose.yaml     Local development stack
 └── .github/         Continuous integration configuration
 ```
@@ -46,7 +46,7 @@ cp .env.example .env
 | `BACKEND_PORT` | `3000` | Express port exposed on the host |
 | `MONGO_DATABASE` | `GameDB` | MongoDB database name |
 | `MONGO_PORT` | `27017` | MongoDB port exposed on `127.0.0.1` |
-| `JWT_SECRET` | random per run | Secret for signing login tokens. Set it on servers so logins survive restarts |
+| `JWT_SECRET` | placeholder | Secret for signing login tokens. Replace the example's placeholder with your own value (`openssl rand -hex 32`) so logins survive restarts. If empty, a random secret is used per run |
 | `APP_URL` | `http://localhost:5173` | Site address used in the links in emails |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | empty, `587`, `false` | Outgoing mail server. With `SMTP_HOST` empty, emails are printed to the backend log |
 | `MAIL_FROM` | `Sweeple <no-reply@localhost>` | Sender of verification and reset emails |
@@ -80,6 +80,17 @@ docker compose down
 ```
 
 `docker compose down` preserves the MongoDB volume. Running `docker compose down --volumes` also deletes local database data and cannot be undone.
+
+## Client
+
+The client currently has the login page ([client/src/components/Login.tsx](client/src/components/Login.tsx)):
+
+- Log in with a username or email and password. On success the token and user are saved in `localStorage` and the page shows who is logged in, with a **Log Out** button that clears them.
+- API errors (for example a wrong password) are shown under the form.
+- An account whose email is not verified gets a **Resend Verification Email** button (it needs the email address, not the username).
+- The link in the verification email returns to `/?verified=1`, which shows "Email verified. You can now log in." (`?verified=0` means the link was invalid or expired).
+
+There is no registration form yet; create accounts with `POST /api/auth/register` (for example with the Bruno collection).
 
 ## Running without Docker
 
@@ -126,7 +137,7 @@ npm test
 
 ## API
 
-All requests and responses are JSON. The full description is in [backend/openapi.yaml](backend/openapi.yaml); import it into SwaggerHub to try the endpoints. The [bruno/](bruno/) folder has ready-made [Bruno](https://www.usebruno.com/) requests for register and login. Endpoints marked *login* need an `Authorization: Bearer <token>` header with the token from `POST /api/auth/login`.
+All requests and responses are JSON. The full description is in [backend/openapi.yaml](backend/openapi.yaml); import it into SwaggerHub to try the endpoints. The [bruno/](bruno/) folder has ready-made [Bruno](https://www.usebruno.com/) requests for register and login, with tests; see [bruno/README.md](bruno/README.md) and the lab walkthrough in [docs/api-lab-demo.md](docs/api-lab-demo.md). Endpoints marked *login* need an `Authorization: Bearer <token>` header with the token from `POST /api/auth/login`.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
@@ -201,3 +212,7 @@ Without `SMTP_HOST`, the backend prints each email, including its link, to its l
 ```bash
 docker compose logs backend
 ```
+
+### Everyone is logged out after the backend restarts
+
+`JWT_SECRET` is empty, so the backend made a new random secret at startup and old tokens no longer verify. Set it in `.env` and run `docker compose up -d backend`.

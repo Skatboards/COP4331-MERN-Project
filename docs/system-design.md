@@ -11,7 +11,7 @@ flowchart LR
     subgraph Clients
         browser["Web browser<br/>(React app)"]
         mobile["Mobile app"]
-        swagger["SwaggerHub<br/>(API demo)"]
+        swagger["SwaggerHub / Bruno<br/>(API demo)"]
     end
 
     subgraph Edge

@@ -1,6 +1,6 @@
 # Data flow
 
-How data moves through the app for each main feature. Every request from the browser goes to the Vite server, which forwards `/api/*` to the backend; the diagrams show that hop as "Client". The mobile app and SwaggerHub call the same endpoints directly.
+How data moves through the app for each main feature. Every request from the browser goes to the Vite server, which forwards `/api/*` to the backend; the diagrams show that hop as "Client". The mobile app, SwaggerHub, and the Bruno collection call the same endpoints directly.
 
 The endpoints are described in full in [backend/openapi.yaml](../backend/openapi.yaml).
 
@@ -50,9 +50,10 @@ sequenceDiagram
     A->>D: Find user by token hash, not expired
     alt Token valid
         A->>D: Set emailVerified true, clear token
-        A-->>P: 302 redirect to /?verified=1
+        A-->>P: 302 redirect to APP_URL/?verified=1
+        Note over P,C: Login page shows "Email verified"
     else Unknown or expired
-        A-->>P: 302 redirect to /?verified=0
+        A-->>P: 302 redirect to APP_URL/?verified=0
     end
 ```
 
@@ -79,7 +80,7 @@ sequenceDiagram
     else OK
         A->>A: Sign JWT (sub = user id, expires in 1 day)
         A-->>C: 200 token + profile
-        C->>C: Keep the token
+        C->>C: Save token and user in localStorage
     end
 
     C->>A: GET /api/users/me with Authorization Bearer token
