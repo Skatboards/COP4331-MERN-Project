@@ -27,6 +27,12 @@ gameDb.users.createIndex(
   { unique: true }
 );
 
+// One user per GitHub or Google account (users without linked accounts are skipped)
+gameDb.users.createIndex(
+  { 'oauthAccounts.provider': 1, 'oauthAccounts.providerId': 1 },
+  { unique: true, partialFilterExpression: { oauthAccounts: { $exists: true } } }
+);
+
 gameDb.boards.createIndex(
   { seed: 1 },
   { unique: true }

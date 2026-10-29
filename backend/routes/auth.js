@@ -52,6 +52,8 @@ function publicUser(user) {
     username: user.username,
     email: user.email,
     emailVerified: user.emailVerified,
+    // Linked sign-in providers, e.g. ['github']
+    providers: (user.oauthAccounts || []).map((account) => account.provider),
     totalClicks: user.totalClicks,
     boardsCompleted: user.boardsCompleted,
     efficiency: user.efficiency

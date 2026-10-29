@@ -30,10 +30,24 @@ const userSchema = new mongoose.Schema(
       lowercase: true
     },
 
+    // Empty for users who only sign in with GitHub or Google; they can add a
+    // password through "forgot password"
     passwordHash: {
       type: String,
-      required: [true, 'Password hash is required'],
       select: false
+    },
+
+    // GitHub and Google accounts linked to this user. Left out (rather than
+    // empty) when there are none, so the unique index below skips the user.
+    oauthAccounts: {
+      type: [
+        {
+          _id: false,
+          provider: { type: String, enum: ['github', 'google'], required: true },
+          providerId: { type: String, required: true }
+        }
+      ],
+      default: undefined
     },
 
     // Set to true once the user follows the link in the verification email
@@ -92,6 +106,12 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
     versionKey: false
   }
+);
+
+// One user per GitHub or Google account
+userSchema.index(
+  { 'oauthAccounts.provider': 1, 'oauthAccounts.providerId': 1 },
+  { unique: true, partialFilterExpression: { oauthAccounts: { $exists: true } } }
 );
 
 module.exports = mongoose.model('User', userSchema);
