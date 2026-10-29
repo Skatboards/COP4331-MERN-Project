@@ -1,0 +1,476 @@
+openapi: 3.0.3
+info:
+  title: Sweeple API
+  version: 1.0.0
+  description: |
+    JSON API for the Sweeple game. Import this file into SwaggerHub to try the endpoints.
+
+    Log in with `POST /api/auth/login`, then click **Authorize** and paste the returned
+    `token` to call the endpoints that need a login.
+servers:
+  - url: https://sweeple.natreese.dev
+    description: Production
+  - url: http://localhost:5173
+    description: Local Docker Compose stack (through the Vite proxy)
+  - url: http://localhost:3000
+    description: Local backend directly
+tags:
+  - name: Health
+  - name: Auth
+  - name: Users
+  - name: Boards
+
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: The API is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  /api/ping:
+    get:
+      tags: [Health]
+      summary: Hello World check
+      responses:
+        '200':
+          description: Greeting
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: Hello World }
+
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Create an account
+      description: Creates an unverified account and emails a verification link. The user cannot log in until the address is verified.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password]
+              properties:
+                firstName: { type: string, example: Ada }
+                lastName: { type: string, example: Lovelace }
+                username: { type: string, pattern: '^[A-Za-z0-9_]{3,20}$', example: ada }
+                email: { type: string, format: email, example: ada@example.com }
+                password: { type: string, minLength: 8, maxLength: 72, example: analytical-engine }
+      responses:
+        '201':
+          description: Account created; verification email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  user: { $ref: '#/components/schemas/CurrentUser' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: Username or email is already in use
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/auth/verify-email:
+    get:
+      tags: [Auth]
+      summary: Verify an email address (link in the email)
+      description: Verifies the address and redirects the browser to the site with `?verified=1` (or `?verified=0` if the link is invalid or expired).
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '302':
+          description: Redirect to the site
+    post:
+      tags: [Auth]
+      summary: Verify an email address (API clients)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/auth/resend-verification:
+    post:
+      tags: [Auth]
+      summary: Email a new verification link
+      description: Always answers the same way, so it does not reveal whether an email is registered.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmailOnly' }
+      responses:
+        '200': { $ref: '#/components/responses/Message' }
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [login, password]
+              properties:
+                login: { type: string, description: Username or email, example: ada }
+                password: { type: string, example: analytical-engine }
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string, description: 'Send as "Authorization: Bearer <token>"' }
+                  user: { $ref: '#/components/schemas/CurrentUser' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Incorrect username or password
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Email address not verified yet (`code` is `EMAIL_NOT_VERIFIED`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/auth/forgot-password:
+    post:
+      tags: [Auth]
+      summary: Email a password reset link
+      description: Always answers the same way, so it does not reveal whether an email is registered. The link is valid for 1 hour.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmailOnly' }
+      responses:
+        '200': { $ref: '#/components/responses/Message' }
+
+  /api/auth/reset-password:
+    post:
+      tags: [Auth]
+      summary: Set a new password with the emailed token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 8, maxLength: 72 }
+      responses:
+        '200': { $ref: '#/components/responses/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/users/me:
+    get:
+      tags: [Users]
+      summary: The logged-in user's profile and stats
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/CurrentUser' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/users/me/attempts:
+    get:
+      tags: [Users]
+      summary: The logged-in user's games, newest first
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Games
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attempts:
+                    type: array
+                    items: { $ref: '#/components/schemas/Attempt' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/users/search:
+    get:
+      tags: [Users]
+      summary: Find players by username or name
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, example: alex }
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Matching players
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items: { $ref: '#/components/schemas/Player' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/users/leaderboard:
+    get:
+      tags: [Users]
+      summary: Top players
+      parameters:
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [boardsCompleted, efficiency, totalClicks]
+            default: boardsCompleted
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Players, best first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sort: { type: string }
+                  users:
+                    type: array
+                    items: { $ref: '#/components/schemas/Player' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/boards:
+    get:
+      tags: [Boards]
+      summary: Most recent boards
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Boards, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  boards:
+                    type: array
+                    items: { $ref: '#/components/schemas/Board' }
+
+  /api/boards/{seed}:
+    get:
+      tags: [Boards]
+      summary: One board's global stats
+      parameters:
+        - $ref: '#/components/parameters/Seed'
+      responses:
+        '200':
+          description: The board
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  board: { $ref: '#/components/schemas/Board' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/boards/{seed}/attempts:
+    get:
+      tags: [Boards]
+      summary: Best finished games on a board
+      parameters:
+        - $ref: '#/components/parameters/Seed'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Games, best first (wins by efficiency, then fewest clicks)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  seed: { type: string }
+                  attempts:
+                    type: array
+                    items:
+                      allOf:
+                        - type: object
+                          properties:
+                            username: { type: string }
+                        - $ref: '#/components/schemas/Attempt'
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [Boards]
+      summary: Record the logged-in user's finished game
+      description: |
+        One game per user per board. The board is created if this is its first game.
+        Updates the board's stats and the user's totals. A lost game always has an efficiency of 0.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Seed'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clicks, status]
+              properties:
+                clicks: { type: integer, minimum: 0, example: 18 }
+                status: { type: string, enum: [won, lost], example: won }
+                efficiency: { type: number, minimum: 0, maximum: 100, description: Required when status is won, example: 85.5 }
+      responses:
+        '201':
+          description: Game recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attempt: { $ref: '#/components/schemas/Attempt' }
+                  board: { $ref: '#/components/schemas/Board' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409':
+          description: The user already played this board
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 50 }
+    Seed:
+      name: seed
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,64}$', example: daily-2026-10-20 }
+
+  responses:
+    Message:
+      description: Success
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message: { type: string }
+    BadRequest:
+      description: The request is missing or has invalid data
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Missing, invalid, or expired login token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        code: { type: string }
+    EmailOnly:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, example: ada@example.com }
+    Player:
+      type: object
+      properties:
+        _id: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        username: { type: string }
+        totalClicks: { type: integer }
+        boardsCompleted: { type: integer }
+        efficiency: { type: number }
+    CurrentUser:
+      type: object
+      properties:
+        id: { type: string }
+        firstName: { type: string }
+        lastName: { type: string }
+        username: { type: string }
+        email: { type: string }
+        emailVerified: { type: boolean }
+        totalClicks: { type: integer }
+        boardsCompleted: { type: integer }
+        efficiency: { type: number }
+    Board:
+      type: object
+      properties:
+        _id: { type: string }
+        seed: { type: string }
+        totalAttempts: { type: integer }
+        totalCompletions: { type: integer }
+        globalCompletionPercentage: { type: number }
+        averageClicks: { type: number }
+        averageEfficiency: { type: number }
+        createdAt: { type: string, format: date-time }
+    Attempt:
+      type: object
+      properties:
+        id: { type: string }
+        seed: { type: string }
+        clicks: { type: integer }
+        completed: { type: boolean }
+        efficiency: { type: number }
+        status: { type: string, enum: [in_progress, won, lost] }
+        completedAt: { type: string, format: date-time, nullable: true }

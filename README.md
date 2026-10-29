@@ -5,18 +5,20 @@ Solve the daily minesweeper board! Every player gets the same board each day and
 ## Technology stack
 
 - React 19, TypeScript, and Vite 8
-- Node.js 24 and Express 4
-- MongoDB 8
+- Node.js 24, Express 5, and Mongoose
+- MongoDB 7.0
 - Docker Compose for local development
-- GitHub Actions for linting, builds, and Compose smoke tests
+- GitHub Actions for linting, builds, API tests, Compose smoke tests, and deployment
 
 ## Repository structure
 
 ```text
 .
 ├── client/          React and Vite frontend
-├── server/          Express API
+├── backend/         Express API (see backend/openapi.yaml)
 ├── mongo/init/      MongoDB initialization directory
+├── deploy/          Droplet deployment notes and scripts
+├── docs/            System design, data flow, and ERD diagrams (Mermaid)
 ├── compose.yaml     Local development stack
 └── .github/         Continuous integration configuration
 ```
@@ -27,7 +29,7 @@ The recommended development setup requires:
 
 - Docker with Docker Compose
 
-To run services directly on the host instead, install Node.js 24, npm, and MongoDB 8.
+To run services directly on the host instead, install Node.js 24, npm, and MongoDB 7.0.
 
 ## Configuration
 
@@ -41,8 +43,12 @@ cp .env.example .env
 | --- | --- | --- |
 | `CLIENT_PORT` | `5173` | Frontend port exposed on the host |
 | `BACKEND_PORT` | `3000` | Express port exposed on the host |
-| `MONGO_DATABASE` | `mern_app` | MongoDB database name |
+| `MONGO_DATABASE` | `GameDB` | MongoDB database name |
 | `MONGO_PORT` | `27017` | MongoDB port exposed on `127.0.0.1` |
+| `JWT_SECRET` | random per run | Secret for signing login tokens. Set it on servers so logins survive restarts |
+| `APP_URL` | `http://localhost:5173` | Site address used in the links in emails |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | empty, `587`, `false` | Outgoing mail server. With `SMTP_HOST` empty, emails are printed to the backend log |
+| `MAIL_FROM` | `Sweeple <no-reply@localhost>` | Sender of verification and reset emails |
 
 ## Running with Docker Compose
 
@@ -62,7 +68,7 @@ The client and server source directories are bind-mounted into their containers.
 | Express server | <http://localhost:3000> |
 | Health endpoint | <http://localhost:3000/api/health> |
 | Health endpoint through Vite | <http://localhost:5173/api/health> |
-| MongoDB | `mongodb://127.0.0.1:27017/mern_app` |
+| MongoDB | `mongodb://127.0.0.1:27017/GameDB` |
 
 Useful commands:
 
@@ -112,18 +118,38 @@ npm run preview
 ```bash
 npm run dev
 npm start
+npm test
 ```
 
-Automated client and backend test scripts have not yet been configured.
+`npm test` runs the API tests in `backend/tests/` (at least one per endpoint) against a temporary in-memory MongoDB 7.0. It needs no running database; the first run downloads the MongoDB binary.
 
 ## API
+
+All requests and responses are JSON. The full description is in [backend/openapi.yaml](backend/openapi.yaml); import it into SwaggerHub to try the endpoints. Endpoints marked *login* need an `Authorization: Bearer <token>` header with the token from `POST /api/auth/login`.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | Returns `{ "status": "ok" }` |
 | `GET` | `/api/ping` | Returns `{ "message": "Hello World" }` |
+| `POST` | `/api/auth/register` | Create an account and email a verification link |
+| `GET` | `/api/auth/verify-email?token=` | The link in the email: verifies, then redirects to the site with `?verified=1` or `0` |
+| `POST` | `/api/auth/verify-email` | Verify with `{ token }` (for the mobile app) |
+| `POST` | `/api/auth/resend-verification` | Email a new verification link |
+| `POST` | `/api/auth/login` | Log in with `{ login, password }` (username or email); returns a token. Unverified accounts get `403` |
+| `POST` | `/api/auth/forgot-password` | Email a password reset link to `/reset-password?token=` on the site |
+| `POST` | `/api/auth/reset-password` | Set a new password with `{ token, password }` |
+| `GET` | `/api/users/me` | *login* The user's profile and stats |
+| `GET` | `/api/users/me/attempts` | *login* The user's games, newest first |
+| `GET` | `/api/users/search?q=` | Find players by username or name |
+| `GET` | `/api/users/leaderboard?sort=` | Top players by `boardsCompleted`, `efficiency`, or `totalClicks` |
+| `GET` | `/api/boards` | Most recent boards |
+| `GET` | `/api/boards/:seed` | One board's global stats |
+| `GET` | `/api/boards/:seed/attempts` | Best finished games on a board |
+| `POST` | `/api/boards/:seed/attempts` | *login* Record a finished game `{ clicks, status: "won" \| "lost", efficiency }`; one per user per board |
 
-The backend receives `MONGODB_URI` from Compose and connects with Mongoose.
+Passwords are hashed with bcrypt. Verification and reset tokens are single-use, expire (24 hours and 1 hour), and only their SHA-256 hashes are stored. The forgot-password and resend endpoints answer the same way whether or not an email is registered.
+
+The backend receives `MONGODB_URI` from Compose and connects with Mongoose. `backend/server.js` is the entry point: it sets up the app and mounts the routes in `backend/routes/`, then connects to MongoDB and starts listening when run directly (tests load it with `require()` instead).
 
 ## Database initialization
 
@@ -136,7 +162,7 @@ MongoDB mounts `mongo/init/` at `/docker-entrypoint-initdb.d`. The official imag
 The workflow in [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on pushes and pull requests targeting `main`. It:
 
 - Uses Node.js 24 for the client and backend
-- Installs dependencies and runs available lint, build, and test scripts
+- Installs dependencies and runs available lint, build, and test scripts (including the backend API tests)
 - Validates the Compose configuration
 - Builds and starts all services
 - Checks the client, Express health endpoint, and Vite proxy
@@ -161,9 +187,16 @@ docker compose logs <service-name>
 
 ### Dependencies are stale inside a container
 
-Recreate the dependency volumes and rebuild the stack. This also removes the MongoDB volume, so preserve any data you need first:
+Each container keeps its installed packages in an anonymous volume. After pulling a change to a `package.json`, rebuild and recreate those volumes (the MongoDB data is kept):
 
 ```bash
-docker compose down --volumes
-docker compose up --build
+docker compose up --build --renew-anon-volumes
+```
+
+### Where is the verification email?
+
+Without `SMTP_HOST`, the backend prints each email, including its link, to its log:
+
+```bash
+docker compose logs backend
 ```

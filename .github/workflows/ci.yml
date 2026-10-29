@@ -113,7 +113,7 @@ jobs:
              cd '$DROPLET_APP_PATH'
              git fetch --prune origin main
              git reset --hard origin/main
-             docker compose up -d --build --remove-orphans --wait --wait-timeout 300
+             docker compose up -d --build --renew-anon-volumes --remove-orphans --wait --wait-timeout 300
              docker image prune -f"
 
       # Checked on the droplet itself (client port from its .env, through the
