@@ -182,3 +182,61 @@
     border-right-color: var(--border);
   }
 }
+
+/* Sign-in: Log In / Sign Up tabs and provider buttons */
+#authTabs {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+#authTabs .tab {
+  font: inherit;
+  font-size: 15px;
+  padding: 4px 16px;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+}
+
+#authTabs .tab.active {
+  color: var(--text-h);
+  border-bottom-color: var(--accent);
+}
+
+#providerButtons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+#providerButtons .provider {
+  display: inline-block;
+  min-width: 220px;
+  padding: 6px 12px;
+  font-size: 15px;
+  color: var(--text-h);
+  background: var(--social-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-decoration: none;
+  transition: box-shadow 0.3s;
+
+  &:hover {
+    box-shadow: var(--shadow);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+#loginDiv .divider {
+  display: block;
+  margin: 10px 0 6px;
+  font-size: 13px;
+}

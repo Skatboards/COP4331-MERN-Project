@@ -19,7 +19,7 @@ Solve the daily minesweeper board! Every player gets the same board each day and
 ├── bruno/           Bruno requests for testing the API
 ├── mongo/init/      MongoDB initialization directory
 ├── deploy/          Droplet deployment notes and scripts
-├── docs/            Diagrams (system design, data flow, ERD) and the API lab walkthrough
+├── docs/            Diagrams (system design, data flow, ERD), OAuth setup, API lab walkthrough
 ├── compose.yaml     Local development stack
 └── .github/         Continuous integration configuration
 ```
@@ -50,6 +50,8 @@ cp .env.example .env
 | `APP_URL` | `http://localhost:5173` | Site address used in the links in emails |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | empty, `587`, `false` | Outgoing mail server. With `SMTP_HOST` empty, emails are printed to the backend log |
 | `MAIL_FROM` | `Sweeple <no-reply@localhost>` | Sender of verification and reset emails |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | empty | Turns on "Continue with GitHub" (see [docs/oauth.md](docs/oauth.md)) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | empty | Turns on "Continue with Google" |
 
 ## Running with Docker Compose
 
@@ -83,14 +85,15 @@ docker compose down
 
 ## Client
 
-The client currently has the login page ([client/src/components/Login.tsx](client/src/components/Login.tsx)):
+The client currently has the sign-in page ([client/src/components/Login.tsx](client/src/components/Login.tsx)), with **Log In** and **Sign Up** tabs:
 
+- **Continue with GitHub** and **Continue with Google** buttons appear for each provider configured on the server (`GET /api/auth/providers`). See [docs/oauth.md](docs/oauth.md).
+- **Sign Up** ([SignUp.tsx](client/src/components/SignUp.tsx)) creates an email and password account and asks the player to verify their email.
 - Log in with a username or email and password. On success the token and user are saved in `localStorage` and the page shows who is logged in, with a **Log Out** button that clears them.
 - API errors (for example a wrong password) are shown under the form.
 - An account whose email is not verified gets a **Resend Verification Email** button (it needs the email address, not the username).
 - The link in the verification email returns to `/?verified=1`, which shows "Email verified. You can now log in." (`?verified=0` means the link was invalid or expired).
 
-There is no registration form yet; create accounts with `POST /api/auth/register` (for example with the Bruno collection).
 
 ## Running without Docker
 
@@ -148,6 +151,9 @@ All requests and responses are JSON. The full description is in [backend/openapi
 | `POST` | `/api/auth/verify-email` | Verify with `{ token }` (for the mobile app) |
 | `POST` | `/api/auth/resend-verification` | Email a new verification link |
 | `POST` | `/api/auth/login` | Log in with `{ login, password }` (username or email); returns a token. Unverified accounts get `403` |
+| `GET` | `/api/auth/providers` | Ways to sign in: `password`, plus `github` and `google` when configured |
+| `GET` | `/api/auth/github`, `/api/auth/google` | Open in a browser to sign in with that provider; returns to the site with `#token=` |
+| `GET` | `/api/auth/:provider/callback` | Where the provider sends the browser back |
 | `POST` | `/api/auth/forgot-password` | Email a password reset link to `/reset-password?token=` on the site |
 | `POST` | `/api/auth/reset-password` | Set a new password with `{ token, password }` |
 | `GET` | `/api/users/me` | *login* The user's profile and stats |
@@ -159,7 +165,7 @@ All requests and responses are JSON. The full description is in [backend/openapi
 | `GET` | `/api/boards/:seed/attempts` | Best finished games on a board |
 | `POST` | `/api/boards/:seed/attempts` | *login* Record a finished game `{ clicks, status: "won" \| "lost", efficiency }`; one per user per board |
 
-Passwords are hashed with bcrypt. Verification and reset tokens are single-use, expire (24 hours and 1 hour), and only their SHA-256 hashes are stored. The forgot-password and resend endpoints answer the same way whether or not an email is registered.
+Passwords are hashed with bcrypt. GitHub and Google sign-in use the authorization code flow with state and PKCE. Verification and reset tokens are single-use, expire (24 hours and 1 hour), and only their SHA-256 hashes are stored. The forgot-password and resend endpoints answer the same way whether or not an email is registered.
 
 The backend receives `MONGODB_URI` from Compose and connects with Mongoose. `backend/server.js` is the entry point: it sets up the app and mounts the routes in `backend/routes/`, then connects to MongoDB and starts listening when run directly (tests load it with `require()` instead).
 

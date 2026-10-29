@@ -29,6 +29,7 @@ flowchart LR
     end
 
     smtp["SMTP email provider"]
+    idp["GitHub and Google<br/>OAuth"]
     inbox["User's inbox"]
 
     browser -->|HTTPS| cf
@@ -41,6 +42,7 @@ flowchart LR
     mongo --- vol
     backend -->|"verification and reset emails"| smtp
     smtp --> inbox
+    backend -->|"code exchange,<br/>profile"| idp
 ```
 
 - Only nginx is reachable from the internet. The containers listen on `127.0.0.1`.
@@ -76,6 +78,7 @@ flowchart TB
 
     subgraph routes["routes/"]
         auth["auth.js<br/>/api/auth/*"]
+        oauthRoute["oauth.js<br/>/api/auth/:provider"]
         users["users.js<br/>/api/users/*"]
         boards["boards.js<br/>/api/boards/*"]
     end
@@ -85,6 +88,7 @@ flowchart TB
     subgraph lib["lib/"]
         tokens["tokens.js<br/>JWT sign/verify,<br/>one-time tokens + SHA-256"]
         email["email.js<br/>nodemailer or log"]
+        oauthLib["oauth.js<br/>GitHub, Google providers"]
     end
 
     subgraph models["models/"]
@@ -93,7 +97,8 @@ flowchart TB
         BoardAttempt
     end
 
-    server --> auth & users & boards
+    server --> auth & oauthRoute & users & boards
+    oauthRoute --> oauthLib & tokens & User
     users --> mw
     boards --> mw
     mw --> tokens

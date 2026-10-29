@@ -1,51 +1,46 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-
-type User = {
-    id: string;
-    firstName: string;
-    lastName: string;
-    username: string;
-    email: string;
-};
-
-const TOKEN_KEY = 'token';
-const USER_KEY = 'user';
-
-// The verification email links back to /?verified=1 (or 0 if the link was bad)
-function verifiedMessage(): string {
-    const verified = new URLSearchParams(window.location.search).get('verified');
-    if (verified === '1') return 'Email verified. You can now log in.';
-    if (verified === '0') return 'That verification link is invalid or has expired.';
-    return '';
-}
-
-function savedUser(): User | null {
-    try {
-        const saved = localStorage.getItem(USER_KEY);
-        return saved && localStorage.getItem(TOKEN_KEY) ? JSON.parse(saved) : null;
-    } catch {
-        return null;
-    }
-}
-
-async function postJson(path: string, body: object) {
-    const res = await fetch(path, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
-    const data = await res.json().catch(() => ({}));
-    return { status: res.status, data };
-}
+import {
+    clearLogin,
+    fetchMe,
+    fetchProviders,
+    messageFromUrl,
+    postJson,
+    saveLogin,
+    savedUser,
+    takeTokenFromUrl
+} from '../auth.ts';
+import type { Provider, User } from '../auth.ts';
+import SignUp from './SignUp.tsx';
 
 export default function Login() {
+    const [mode, setMode] = useState<'login' | 'signup'>('login');
+    const [providers, setProviders] = useState<Provider[]>([]);
     const [login, setLogin] = useState('');
     const [password, setPassword] = useState('');
-    const [message, setMessage] = useState(verifiedMessage);
+    const [message, setMessage] = useState(messageFromUrl);
     const [unverifiedLogin, setUnverifiedLogin] = useState('');
     const [busy, setBusy] = useState(false);
     const [user, setUser] = useState<User | null>(savedUser);
+
+    useEffect(() => {
+        fetchProviders().then(setProviders);
+
+        // Coming back from GitHub or Google
+        const token = takeTokenFromUrl();
+        if (token) {
+            fetchMe(token)
+                .then((me) => {
+                    if (me) {
+                        saveLogin(token, me);
+                        setUser(me);
+                    } else {
+                        setMessage('Sign-in failed. Try again.');
+                    }
+                })
+                .catch(() => setMessage('Could not reach the server. Try again.'));
+        }
+    }, []);
 
     async function doLogin(event: FormEvent<HTMLFormElement>): Promise<void> {
         event.preventDefault();
@@ -60,8 +55,7 @@ export default function Login() {
         try {
             const { status, data } = await postJson('/api/auth/login', { login, password });
             if (status === 200) {
-                localStorage.setItem(TOKEN_KEY, data.token);
-                localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+                saveLogin(data.token, data.user);
                 setUser(data.user);
                 setPassword('');
             } else {
@@ -96,10 +90,15 @@ export default function Login() {
     }
 
     function doLogout(): void {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
+        clearLogin();
         setUser(null);
         setMessage('Logged out.');
+    }
+
+    function switchMode(next: 'login' | 'signup'): void {
+        setMode(next);
+        setMessage('');
+        setUnverifiedLogin('');
     }
 
     if (user) {
@@ -113,17 +112,50 @@ export default function Login() {
         );
     }
 
+    const oauthProviders = providers.filter((p) => p.id !== 'password');
+
     return(
-        <form id="loginDiv" onSubmit={doLogin}>
-            <span id="inner-title">PLEASE LOG IN</span><br />
-            <input type="text" id="loginName" placeholder="Username or email"
-                autoComplete="username" value={login}
-                onChange={(e) => setLogin(e.target.value)} /><br />
-            <input type="password" id="loginPassword" placeholder="Password"
-                autoComplete="current-password" value={password}
-                onChange={(e) => setPassword(e.target.value)} /><br />
-            <input type="submit" id="loginButton" className="buttons"
-                value={busy ? 'Logging In...' : 'Do It'} disabled={busy} /><br />
+        <div id="loginDiv">
+            <div id="authTabs" role="tablist">
+                <button type="button" role="tab" aria-selected={mode === 'login'}
+                    className={mode === 'login' ? 'tab active' : 'tab'}
+                    onClick={() => switchMode('login')}>Log In</button>
+                <button type="button" role="tab" aria-selected={mode === 'signup'}
+                    className={mode === 'signup' ? 'tab active' : 'tab'}
+                    onClick={() => switchMode('signup')}>Sign Up</button>
+            </div>
+
+            {oauthProviders.length > 0 && (
+                <>
+                    <div id="providerButtons">
+                        {oauthProviders.map((p) => (
+                            // A plain link: the server redirects to the provider
+                            <a key={p.id} id={`${p.id}Button`} className="buttons provider"
+                                href={`/api/auth/${p.id}`}>
+                                Continue with {p.name}
+                            </a>
+                        ))}
+                    </div>
+                    <span className="divider">or with email</span>
+                </>
+            )}
+
+            {mode === 'signup' ? (
+                <SignUp onMessage={setMessage} />
+            ) : (
+                <form id="loginForm" onSubmit={doLogin}>
+                    <span id="inner-title">PLEASE LOG IN</span><br />
+                    <input type="text" id="loginName" placeholder="Username or email"
+                        autoComplete="username" value={login}
+                        onChange={(e) => setLogin(e.target.value)} /><br />
+                    <input type="password" id="loginPassword" placeholder="Password"
+                        autoComplete="current-password" value={password}
+                        onChange={(e) => setPassword(e.target.value)} /><br />
+                    <input type="submit" id="loginButton" className="buttons"
+                        value={busy ? 'Logging In...' : 'Do It'} disabled={busy} />
+                </form>
+            )}
+
             <span id="loginResult" role="status">{message}</span>
             {unverifiedLogin && (
                 <>
@@ -133,6 +165,6 @@ export default function Login() {
                         onClick={resendVerification} />
                 </>
             )}
-        </form>
+        </div>
     );
 };

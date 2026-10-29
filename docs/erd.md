@@ -5,6 +5,7 @@ The `GameDB` database has three collections. They are defined by the Mongoose mo
 ```mermaid
 erDiagram
     USER ||--o{ BOARD_ATTEMPT : "plays"
+    USER ||--o{ OAUTH_ACCOUNT : "signs in with"
     BOARD ||--o{ BOARD_ATTEMPT : "is played in"
 
     USER {
@@ -13,7 +14,7 @@ erDiagram
         string lastName
         string username UK "3-20 letters, numbers, _"
         string email UK "stored lowercase"
-        string passwordHash "bcrypt, never returned"
+        string passwordHash "bcrypt, never returned; empty for GitHub/Google-only users"
         boolean emailVerified "default false"
         string emailVerificationTokenHash "SHA-256, nullable"
         date emailVerificationExpires "nullable"
@@ -24,6 +25,11 @@ erDiagram
         number efficiency "0-100, average of won games"
         date createdAt
         date updatedAt
+    }
+
+    OAUTH_ACCOUNT {
+        string provider "github or google"
+        string providerId "the provider's user id"
     }
 
     BOARD {
@@ -57,6 +63,7 @@ erDiagram
 | Relationship | Meaning |
 | --- | --- |
 | User to BoardAttempt | One user has zero or more attempts. |
+| User to OAuthAccount | One user has zero or more linked GitHub or Google accounts. They are embedded in the user document as `oauthAccounts`, not a separate collection. |
 | Board to BoardAttempt | One board has zero or more attempts. |
 | User and Board, through BoardAttempt | Many to many. A unique index on (`userId`, `boardId`) allows one attempt per user per board. |
 
@@ -66,6 +73,7 @@ erDiagram
 | --- | --- | --- |
 | `users` | `username` | unique |
 | `users` | `email` | unique |
+| `users` | `oauthAccounts.provider` + `oauthAccounts.providerId` | unique, compound, only users with linked accounts |
 | `boards` | `seed` | unique |
 | `boardAttempts` | `userId` + `boardId` | unique, compound |
 

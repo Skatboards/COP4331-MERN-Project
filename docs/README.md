@@ -7,6 +7,7 @@ Diagrams are written in [Mermaid](https://mermaid.js.org/) and render directly o
 | [system-design.md](system-design.md) | Deployment overview, containers, backend modules, CI/CD |
 | [data-flow.md](data-flow.md) | Sign up and email verification, login, recording a game, password reset, reading stats |
 | [erd.md](erd.md) | Database entities, relationships, and indexes |
+| [oauth.md](oauth.md) | Sign in with GitHub and Google: flow, setup, account linking |
 | [api-lab-demo.md](api-lab-demo.md) | How to demonstrate the API for the API Role lab |
 
 Related:
