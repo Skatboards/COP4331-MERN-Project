@@ -1,0 +1,42 @@
+meta {
+  name: Login
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "login": "{{login}}",
+    "password": "{{password}}"
+  }
+}
+
+script:post-response {
+  // Keep the token for requests that need a login
+  if (res.getStatus() === 200) {
+    bru.setVar("token", res.getBody().token);
+  }
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("returns the user record and a token", function () {
+    const body = res.getBody();
+    expect(body.user.username).to.be.a("string");
+    expect(body.token).to.be.a("string");
+  });
+}
+
+docs {
+  Logs in with a username or email. Set `login` in the environment and
+  `password` as its secret value; the account must have a verified email.
+}

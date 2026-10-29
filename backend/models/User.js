@@ -36,6 +36,38 @@ const userSchema = new mongoose.Schema(
       select: false
     },
 
+    // Set to true once the user follows the link in the verification email
+    emailVerified: {
+      type: Boolean,
+      default: false
+    },
+
+    // Only SHA-256 hashes of the emailed tokens are stored, so a database
+    // leak does not hand out working verification or reset links
+    emailVerificationTokenHash: {
+      type: String,
+      default: null,
+      select: false
+    },
+
+    emailVerificationExpires: {
+      type: Date,
+      default: null,
+      select: false
+    },
+
+    passwordResetTokenHash: {
+      type: String,
+      default: null,
+      select: false
+    },
+
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+      select: false
+    },
+
     totalClicks: {
       type: Number,
       default: 0,
