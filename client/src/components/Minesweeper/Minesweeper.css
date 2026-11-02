@@ -1,0 +1,66 @@
+.ms-board {
+  --ms-tile: #b7c4d6;
+  --ms-tile-hi: #d6dfeb;
+  --ms-tile-lo: #8f9fb6;
+  --ms-open: #fafbfd;
+  --ms-ink: #1b2430;
+  --ms-danger: #c8323f;
+  --ms-flag: #c76a00;
+  --ms-focus: var(--accent, #0f5fa8);
+  --ms-cell: clamp(18px, calc((100vw - 56px) / 16), 32px);
+
+  display: grid;
+  grid-template-columns: repeat(var(--ms-cols), var(--ms-cell));
+  grid-auto-rows: var(--ms-cell);
+  width: max-content;
+  max-width: 100%;
+  margin: 0 auto;
+  overflow-x: auto;
+  border: 2px solid var(--ms-tile-lo);
+  border-radius: 4px;
+  background: var(--ms-tile-lo);
+  gap: 1px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+@media (prefers-color-scheme: dark) {
+  .ms-board {
+    --ms-tile: #3a4658;
+    --ms-tile-hi: #4d5b72;
+    --ms-tile-lo: #242d3a;
+    --ms-open: #1a212b;
+    --ms-ink: #e6ebf2;
+    --ms-danger: #ff6b76;
+    --ms-flag: #f0a04a;
+  }
+}
+
+.ms-cell {
+  display: flex; align-items: center; justify-content: center;
+  width: var(--ms-cell); height: var(--ms-cell); padding: 0; margin: 0;
+  border: 0; border-radius: 0;
+  font: 700 calc(var(--ms-cell) * 0.55) / 1 system-ui, sans-serif;
+  letter-spacing: 0;
+  color: var(--ms-ink);
+  background: var(--ms-tile);
+  box-shadow: inset 2px 2px 0 var(--ms-tile-hi), inset -2px -2px 0 var(--ms-tile-lo);
+  cursor: pointer;
+}
+.ms-cell:hover:not(:disabled) { background: var(--ms-tile-hi); }
+.ms-cell:focus-visible { outline: 3px solid var(--ms-focus); outline-offset: -3px; z-index: 1; }
+.ms-cell:disabled { cursor: default; }
+
+.ms-open { background: var(--ms-open); box-shadow: none; }
+.ms-flag { color: var(--ms-flag); }
+.ms-boom { background: var(--ms-danger); color: #fff; }
+.ms-wrong { color: var(--ms-danger); }
+
+.ms-n1 { color: #1f5fbf; } .ms-n2 { color: #1b7a3d; } .ms-n3 { color: #c0392b; }
+.ms-n4 { color: #5a3bb5; } .ms-n5 { color: #9a4a14; } .ms-n6 { color: #0f7c85; }
+.ms-n7 { color: var(--ms-ink); } .ms-n8 { color: #5a6778; }
+@media (prefers-color-scheme: dark) {
+  .ms-n1 { color: #6fa8ff; } .ms-n2 { color: #5fd08a; } .ms-n3 { color: #ff7a6b; }
+  .ms-n4 { color: #b39bff; } .ms-n5 { color: #e0955a; } .ms-n6 { color: #5fd0d8; }
+  .ms-n8 { color: #9aa7b8; }
+}
