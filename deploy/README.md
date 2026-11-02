@@ -6,8 +6,10 @@ Every push to `main` that passes CI is deployed to the DigitalOcean droplet by t
 cd /home/mern/sweeple
 git fetch --prune origin main
 git reset --hard origin/main
-docker compose up -d --build --remove-orphans --wait
+docker compose up -d --build --renew-anon-volumes --remove-orphans --wait
 ```
+
+`--renew-anon-volumes` replaces each container's `node_modules` volume with the packages from the freshly built image, so new dependencies take effect. The `mongo_data` volume is named and is not touched.
 
 It then checks `http://127.0.0.1:5173/api/health` on the droplet (the client port, through the Vite proxy to the backend). If that fails, the job fails. Once nginx serves this stack, this check can move to `https://sweeple.natreese.dev/api/health`.
 
@@ -23,12 +25,31 @@ It then checks `http://127.0.0.1:5173/api/health` on the droplet (the client por
   CLIENT_PORT=127.0.0.1:5173
   BACKEND_PORT=127.0.0.1:3001
   MONGO_PORT=27017
+  APP_URL=https://sweeple.natreese.dev
+  JWT_SECRET=<output of: openssl rand -hex 32>
+  # Outgoing email (see "Email" below)
+  SMTP_HOST=
+  SMTP_PORT=587
+  SMTP_USER=
+  SMTP_PASS=
+  MAIL_FROM=Sweeple <no-reply@natreese.dev>
   ```
 
   - `DOMAIN` lets Vite accept requests for the domain (it rejects unknown hostnames otherwise).
   - The client, backend, and MongoDB are bound to `127.0.0.1`, so nothing is reachable from the internet directly. Port 3000 is left for the existing pm2 app.
+  - `APP_URL` is the address used in the links in verification and reset emails.
+  - `JWT_SECRET` signs login tokens. Without it the backend picks a random secret at each start, so every deploy logs everyone out.
 
+  After editing `.env`, apply it with `docker compose up -d` in that folder.
+
+- For the API lab, Bruno must reach the API over HTTPS, which needs nginx switched to this stack (below). See [docs/api-lab-demo.md](../docs/api-lab-demo.md).
 - nginx on the droplet terminates HTTPS for `sweeple.natreese.dev` (Certbot certificate) and currently sends it to the older pm2 app on port 3000.
+
+## Email
+
+Account verification and password reset emails are sent over SMTP when `SMTP_HOST` is set. Until then the backend prints each email to its log, which is enough for testing: `docker compose logs backend | grep -A4 '\[email\]'`.
+
+DigitalOcean blocks outgoing SMTP on ports 25, 465, and 587 for many droplets. Use a transactional email provider (for example SendGrid, Mailgun, Brevo, or Resend) on a port it offers outside that range, such as 2525 or 2587, and put its SMTP host, port, username, and password in `.env`. Most providers also require verifying the sending domain (DNS records for `natreese.dev`), which needs the domain owner.
 
 ## Switching the domain to this stack
 

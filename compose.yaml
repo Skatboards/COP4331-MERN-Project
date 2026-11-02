@@ -9,7 +9,9 @@ services:
       - "${CLIENT_PORT:-5173}:5173"
     volumes:
       - ./client:/app
-      - client_node_modules:/app/node_modules
+      # Keeps the image's installed packages instead of the host's; recreated
+      # with `docker compose up -V` when dependencies change
+      - /app/node_modules
     depends_on:
       backend:
         condition: service_healthy
@@ -31,11 +33,22 @@ services:
     environment:
       PORT: 3000
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DATABASE:-GameDB}
+      # Login tokens; without it a random secret is used and logins reset on restart
+      JWT_SECRET: ${JWT_SECRET:-}
+      # Site address used in the links in verification and reset emails
+      APP_URL: ${APP_URL:-http://localhost:5173}
+      # Without SMTP_HOST, emails are printed to the backend log instead of sent
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-Sweeple <no-reply@localhost>}
     ports:
       - "${BACKEND_PORT:-3000}:3000"
     volumes:
       - ./backend:/app
-      - backend_node_modules:/app/node_modules
+      - /app/node_modules
     depends_on:
       mongo:
         condition: service_healthy
@@ -68,6 +81,4 @@ services:
       start_period: 10s
 
 volumes:
-  client_node_modules:
-  backend_node_modules:
   mongo_data:
