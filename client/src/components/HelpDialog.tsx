@@ -11,6 +11,9 @@ export default function HelpDialog({ onClose }: HelpDialogProps) {
         <div><span>02</span><p><strong>Mark the mines</strong>Flag the tiles you think are hiding a mine.</p></div>
         <div><span>03</span><p><strong>Clear the board</strong>Finish the daily puzzle in the shortest time possible.</p></div>
       </div>
+      <a className="external-help-link" href="https://minesweeper.online/help/gameplay" target="_blank" rel="noreferrer">
+        More detailed Minesweeper help <span aria-hidden="true">↗</span>
+      </a>
       <button className="primary-button full-button" onClick={onClose}>Got it</button>
     </Modal>
   );

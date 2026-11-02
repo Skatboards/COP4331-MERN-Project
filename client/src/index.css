@@ -21,5 +21,6 @@
 body { margin: 0; min-width: 320px; min-height: 100vh; }
 button, input { font: inherit; }
 button { color: inherit; }
+a { color: inherit; }
 button:focus-visible, input:focus-visible { outline: 3px solid #9ac844; outline-offset: 3px; }
 ::selection { background: #ddf4a8; }
