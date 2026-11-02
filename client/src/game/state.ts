@@ -1,4 +1,4 @@
-import { floodReveal, isWon, openingReveal, type Board } from './minesweeper.ts';
+import { floodReveal, isWon, neighbors, openingReveal, type Board } from './minesweeper.ts';
 
 export type GameStatus = 'playing' | 'won' | 'lost';
 
@@ -40,6 +40,29 @@ export function revealCell(board: Board, state: GameState, index: number): GameS
     clicks,
     status: isWon(board, revealed) ? 'won' : 'playing',
   };
+}
+
+export function chordCell(board: Board, state: GameState, index: number): GameState {
+  if (state.status !== 'playing') return state;
+  if (!Number.isInteger(index) || index < 0 || index >= board.rows * board.cols) return state;
+  const revealed = new Set(state.revealed);
+  if (!revealed.has(index) || board.adjacent[index] === 0) return state;
+
+  const around = neighbors(index, board.rows, board.cols);
+  const flagged = around.filter((n) => state.flags.includes(n)).length;
+  if (flagged !== board.adjacent[index]) return { ...state, clicks: state.clicks + 1 };
+
+  const targets = around.filter((n) => !revealed.has(n) && !state.flags.includes(n));
+  if (targets.length === 0) return state;
+
+  let explodedAt: number | null = null;
+  for (const n of targets) {
+    if (board.isMine[n]) explodedAt ??= n;
+    else floodReveal(board, n, revealed);
+  }
+  const next = { ...state, revealed: [...revealed], clicks: state.clicks + 1 };
+  if (explodedAt !== null) return { ...next, status: 'lost' as const, explodedAt };
+  return { ...next, status: isWon(board, revealed) ? ('won' as const) : ('playing' as const) };
 }
 
 export function toggleFlag(state: GameState, index: number): GameState {
