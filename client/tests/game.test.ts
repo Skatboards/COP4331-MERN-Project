@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  COLS, MINES, ROWS, dailySeed, efficiency, generateBoard, neighbors, openingReveal, optimalClicks,
+  COLS, MINES, ROWS, dailySeed, efficiency, generateBoard, neighbors, openingReveal, optimalClicks, parClicks,
 } from '../src/game/minesweeper.ts';
 import { newGame, parseSavedGame, revealCell, toggleFlag } from '../src/game/state.ts';
 
@@ -95,4 +95,11 @@ test('parseSavedGame rejects bad or stale data', () => {
   assert.equal(parseSavedGame('{not json', 'p', CELLS), null);
   assert.equal(parseSavedGame(JSON.stringify({ ...newGame(b, 'p'), revealed: [9999] }), 'p', CELLS), null);
   assert.equal(parseSavedGame(null, 'p', CELLS), null);
+});
+
+test('par with chording is at most the no-chord baseline', () => {
+  for (const seed of ['a', 'b', 'c', 'daily-2026-11-02']) {
+    const b = generateBoard(seed);
+    assert.ok(parClicks(b) <= optimalClicks(b));
+  }
 });

@@ -10,6 +10,8 @@ interface CellProps {
   won: boolean;
   wrongFlag: boolean;
   finished: boolean;
+  chordable: boolean;
+  pressed: boolean;
   focusable: boolean;
   onActivate: (index: number) => void;
   onFlag: (index: number) => void;
@@ -24,11 +26,13 @@ export default function Cell(p: CellProps) {
 
   if (p.revealed) {
     cls += ' ms-open';
+    if (p.chordable) cls += ' ms-chordable';
     if (p.adjacent > 0) {
       cls += ` ms-n${p.adjacent}`;
       glyph = String(p.adjacent);
     }
     label = `${where}, ${p.adjacent} adjacent ${p.adjacent === 1 ? 'mine' : 'mines'}`;
+    if (p.chordable) label += ', press to open around it';
   } else if (p.showMine) {
     cls += p.exploded ? ' ms-mine ms-boom' : ' ms-mine';
     glyph = p.won ? '⚑' : '✹';
@@ -43,6 +47,8 @@ export default function Cell(p: CellProps) {
     label = `${where}, flagged`;
   }
 
+  if (p.pressed) cls += ' ms-press';
+
   return (
     <button
       type="button"
@@ -50,7 +56,7 @@ export default function Cell(p: CellProps) {
       data-index={p.index}
       aria-label={label}
       tabIndex={p.focusable ? 0 : -1}
-      disabled={p.revealed || p.finished}
+      disabled={p.finished}
       onClick={() => p.onActivate(p.index)}
       onContextMenu={(e) => {
         e.preventDefault();

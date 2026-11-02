@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
-import { efficiency, generateBoard, optimalClicks } from '../game/minesweeper.ts';
-import { newGame, parseSavedGame, revealCell, toggleFlag, type GameState } from '../game/state.ts';
+import { efficiency, generateBoard, parClicks } from '../game/minesweeper.ts';
+import {
+  chordCell, newGame, parseSavedGame, revealCell, toggleFlag, type GameState,
+} from '../game/state.ts';
 
 export interface GameResult {
   clicks: number;
@@ -28,7 +30,7 @@ function persist(game: GameState) {
 
 export function useMinesweeper(seed: string) {
   const board = useMemo(() => generateBoard(seed), [seed]);
-  const optimal = useMemo(() => optimalClicks(board), [board]);
+  const par = useMemo(() => parClicks(board), [board]);
   const [game, setGame] = useState<GameState>(() =>
     loadGame(seed, board.rows * board.cols, () => newGame(board, seed))
   );
@@ -41,9 +43,9 @@ export function useMinesweeper(seed: string) {
         : {
             clicks: game.clicks,
             status: game.status,
-            efficiency: game.status === 'won' ? efficiency(optimal, game.clicks) : 0,
+            efficiency: game.status === 'won' ? efficiency(par, game.clicks) : 0,
           },
-    [game.status, game.clicks, optimal]
+    [game.status, game.clicks, par]
   );
 
   const update = useCallback((next: GameState) => {
@@ -54,6 +56,14 @@ export function useMinesweeper(seed: string) {
   const reveal = useCallback(
     (index: number) => {
       const next = revealCell(board, game, index);
+      if (next !== game) update(next);
+    },
+    [board, game, update]
+  );
+
+  const chord = useCallback(
+    (index: number) => {
+      const next = chordCell(board, game, index);
       if (next !== game) update(next);
     },
     [board, game, update]
@@ -76,6 +86,7 @@ export function useMinesweeper(seed: string) {
     flagMode,
     setFlagMode,
     reveal,
+    chord,
     flag,
   };
 }

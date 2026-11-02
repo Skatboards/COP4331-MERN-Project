@@ -130,6 +130,43 @@ export function optimalClicks(board: Board): number {
   return clicks;
 }
 
+export function parClicks(board: Board): number {
+  const total = board.rows * board.cols;
+  const need = total - board.mineCount;
+  let revealed = openingReveal(board);
+  let clicks = 0;
+
+  while (revealed.size < need) {
+    let best = revealed;
+    let bestGain = 0;
+
+    for (const c of revealed) {
+      if (board.adjacent[c] === 0) continue;
+      const t = new Set(revealed);
+      for (const n of neighbors(c, board.rows, board.cols)) {
+        if (!t.has(n) && !board.isMine[n]) floodReveal(board, n, t);
+      }
+      if (t.size - revealed.size > bestGain) {
+        bestGain = t.size - revealed.size;
+        best = t;
+      }
+    }
+
+    for (let i = 0; i < total; i++) {
+      if (board.isMine[i] || revealed.has(i)) continue;
+      const t = floodReveal(board, i, new Set(revealed));
+      if (t.size - revealed.size > bestGain) {
+        bestGain = t.size - revealed.size;
+        best = t;
+      }
+    }
+
+    revealed = best;
+    clicks++;
+  }
+  return clicks;
+}
+
 export function efficiency(optimal: number, clicks: number): number {
   if (clicks <= 0) return 0;
   if (optimal <= 0) return 100;

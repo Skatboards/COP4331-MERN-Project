@@ -1,5 +1,7 @@
-import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
-import type { Board as BoardData } from '../../game/minesweeper.ts';
+import {
+  useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent,
+} from 'react';
+import { neighbors, type Board as BoardData } from '../../game/minesweeper.ts';
 import type { GameState } from '../../game/state.ts';
 import Cell from './Cell.tsx';
 import './Minesweeper.css';
@@ -10,14 +12,36 @@ interface BoardProps {
   flagMode: boolean;
   onReveal: (index: number) => void;
   onFlag: (index: number) => void;
+  onChord: (index: number) => void;
 }
 
-export default function Board({ board, game, flagMode, onReveal, onFlag }: BoardProps) {
+export default function Board({ board, game, flagMode, onReveal, onFlag, onChord }: BoardProps) {
   const { rows, cols } = board;
   const finished = game.status !== 'playing';
   const won = game.status === 'won';
   const revealed = useMemo(() => new Set(game.revealed), [game.revealed]);
   const flags = useMemo(() => new Set(game.flags), [game.flags]);
+
+  const [pressed, setPressed] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (pressed === null) return;
+    const release = () => setPressed(null);
+    window.addEventListener('pointerup', release);
+    window.addEventListener('pointercancel', release);
+    return () => {
+      window.removeEventListener('pointerup', release);
+      window.removeEventListener('pointercancel', release);
+    };
+  }, [pressed]);
+
+  const pressedCells = useMemo(
+    () =>
+      pressed === null
+        ? new Set<number>()
+        : new Set(neighbors(pressed, rows, cols).filter((n) => !revealed.has(n) && !flags.has(n))),
+    [pressed, rows, cols, revealed, flags]
+  );
 
   const [focusIndex, setFocusIndex] = useState(0);
   const boardRef = useRef<HTMLDivElement>(null);
@@ -43,7 +67,19 @@ export default function Board({ board, game, flagMode, onReveal, onFlag }: Board
     }
   };
 
-  const activate = (i: number) => (flagMode ? onFlag(i) : onReveal(i));
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || finished) return;
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-index]');
+    if (!btn) return;
+    const i = Number(btn.dataset.index);
+    if (revealed.has(i) && board.adjacent[i] > 0) setPressed(i);
+  };
+
+  const activate = (i: number) => {
+    if (revealed.has(i)) onChord(i);
+    else if (flagMode) onFlag(i);
+    else onReveal(i);
+  };
 
   const cells = [];
   for (let i = 0; i < rows * cols; i++) {
@@ -62,6 +98,8 @@ export default function Board({ board, game, flagMode, onReveal, onFlag }: Board
         won={won}
         wrongFlag={finished && flags.has(i) && !isMine}
         finished={finished}
+        chordable={!finished && revealed.has(i) && board.adjacent[i] > 0}
+        pressed={pressedCells.has(i)}
         focusable={i === focusIndex}
         onActivate={activate}
         onFlag={onFlag}
@@ -75,8 +113,9 @@ export default function Board({ board, game, flagMode, onReveal, onFlag }: Board
       ref={boardRef}
       className="ms-board"
       role="group"
-      aria-label="Minesweeper board. Arrow keys move, Enter reveals, F flags."
+      aria-label="Minesweeper board. Arrow keys move, Enter reveals or chords, F flags."
       style={{ '--ms-cols': cols } as CSSProperties}
+      onPointerDown={onPointerDown}
       onKeyDown={onKeyDown}
     >
       {cells}
