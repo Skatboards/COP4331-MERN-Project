@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 
 type SiteHeaderProps = {
   username: string;
+  theme: 'light' | 'dark';
+  onThemeToggle: () => void;
   menuOpen: boolean;
   onMenuToggle: () => void;
   onHelp: () => void;
@@ -9,11 +11,21 @@ type SiteHeaderProps = {
   onSignOut: () => void;
 };
 
-export default function SiteHeader({ username, menuOpen, onMenuToggle, onHelp, onMenuClose, onSignOut }: SiteHeaderProps) {
+export default function SiteHeader({ username, theme, onThemeToggle, menuOpen, onMenuToggle, onHelp, onMenuClose, onSignOut }: SiteHeaderProps) {
   return (
     <header className="topbar">
       <Link className="wordmark" to="/" aria-label="Sweeple home" onClick={onMenuClose}>Sweeple<span>.</span></Link>
       <div className="header-actions">
+        <button
+          className="theme-toggle"
+          type="button"
+          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          aria-pressed={theme === 'dark'}
+          title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          onClick={onThemeToggle}
+        >
+          <span aria-hidden="true">{theme === 'light' ? '☾' : '☀'}</span>
+        </button>
         <button className="help-button" onClick={onHelp} aria-label="How to play" title="How to play">?</button>
         <div className="account-wrap">
           <button className="account-button" aria-expanded={menuOpen} onClick={onMenuToggle}>
