@@ -1,4 +1,5 @@
 import './App.css';
+import LoginPage from './pages/LoginPage.tsx';
 import PlayPage from './pages/PlayPage.tsx';
 
 export default function App() {
@@ -6,12 +7,5 @@ export default function App() {
     return <PlayPage />;
   }
 
-  return (
-    <div>
-      <h2>Minesweeper demo</h2>
-      <button type="button" onClick={() => window.location.assign('/play')}>
-        Play
-      </button>
-    </div>
-  );
+  return <LoginPage />;
 }

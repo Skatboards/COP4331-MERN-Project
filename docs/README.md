@@ -13,6 +13,6 @@ Diagrams are written in [Mermaid](https://mermaid.js.org/) and render directly o
 Related:
 
 - [backend/openapi.yaml](../backend/openapi.yaml): API description for SwaggerHub
-- [bruno/](../bruno/): Bruno requests for register and login
+- [bruno/](../bruno/): Bruno collection for auth, boards, and users (see [bruno/README.md](../bruno/README.md))
 - [deploy/README.md](../deploy/README.md): droplet deployment
 - [mongo/README.md](../mongo/README.md): database initialization

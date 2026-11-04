@@ -1,0 +1,36 @@
+meta {
+  name: Register - Duplicate
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "Demo",
+    "lastName": "User",
+    "username": "{{lastRegisteredUsername}}",
+    "email": "{{lastRegisteredEmail}}",
+    "password": "demo-password-123"
+  }
+}
+
+tests {
+  test("returns 409 Conflict", function () {
+    expect(res.getStatus()).to.equal(409);
+  });
+
+  test("returns an error message", function () {
+    expect(res.getBody().error).to.be.a("string");
+  });
+}
+
+docs {
+  Run Register first. Reuses that user's username and email to show duplicate
+  rejection.
+}

@@ -16,7 +16,7 @@ Solve the daily minesweeper board! Every player gets the same board each day and
 .
 ├── client/          React and Vite frontend
 ├── backend/         Express API (see backend/openapi.yaml)
-├── bruno/           Bruno requests for testing the API
+├── bruno/           Bruno collection for auth API requests (with tests)
 ├── mongo/init/      MongoDB initialization directory
 ├── deploy/          Droplet deployment notes and scripts
 ├── docs/            Diagrams (system design, data flow, ERD), OAuth setup, API lab walkthrough
@@ -138,9 +138,25 @@ npm test
 
 `npm test` runs the API tests in `backend/tests/` (at least one per endpoint) against a temporary in-memory MongoDB 7.0. It needs no running database; the first run downloads the MongoDB binary.
 
+### Bruno (API requests)
+
+Use the [bruno/](bruno/) folder as the collection in the **Bruno VS Code extension**, the Bruno desktop app, or the CLI. For local work, select the **Local** environment (`http://localhost:5173`) with Docker Compose running. Step-by-step for the extension: [bruno/README.md](bruno/README.md#vs-code--cursor-bruno-extension).
+
+From the `bruno/` folder on the command line:
+
+```bash
+cd bruno
+npx @usebruno/cli@4.3.0 run --env Local \
+  --env-var login=USERNAME \
+  --env-var email=USER@example.com \
+  --env-var password=YOUR_PASSWORD
+```
+
+The collection covers **auth**, **boards**, and **users** endpoints that fit Bruno (register through profile, list/record attempts, leaderboard, search). OAuth sign-in itself is browser-only; use **Get Auth Providers** to see what the server exposes. Full request list, environment variables, and flows: [bruno/README.md](bruno/README.md). API Role lab demo script: [docs/api-lab-demo.md](docs/api-lab-demo.md).
+
 ## API
 
-All requests and responses are JSON. The full description is in [backend/openapi.yaml](backend/openapi.yaml); import it into SwaggerHub to try the endpoints. The [bruno/](bruno/) folder has ready-made [Bruno](https://www.usebruno.com/) requests for register and login, with tests; see [bruno/README.md](bruno/README.md) and the lab walkthrough in [docs/api-lab-demo.md](docs/api-lab-demo.md). Endpoints marked *login* need an `Authorization: Bearer <token>` header with the token from `POST /api/auth/login`.
+All requests and responses are JSON. The full description is in [backend/openapi.yaml](backend/openapi.yaml); import it into SwaggerHub to try the endpoints. For manual and scripted checks against a running stack, use the [bruno/](bruno/) collection ([bruno/README.md](bruno/README.md)). Endpoints marked *login* need an `Authorization: Bearer <token>` header with the token from `POST /api/auth/login`.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |

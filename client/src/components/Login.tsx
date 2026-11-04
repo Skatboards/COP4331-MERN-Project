@@ -106,6 +106,7 @@ export default function Login() {
             <div id="loginDiv">
                 <span id="inner-title">LOGGED IN AS {user.username}</span><br />
                 <span id="userName">{[user.firstName, user.lastName].filter(Boolean).join(' ')}</span><br />
+                <a href="/play" className="buttons" id="playButton">Play today&apos;s board</a><br />
                 <input type="button" id="logoutButton" className="buttons" value="Log Out"
                     onClick={doLogout} />
             </div>

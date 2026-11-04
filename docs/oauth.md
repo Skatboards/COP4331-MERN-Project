@@ -76,6 +76,12 @@ Google Cloud Console → APIs & Services:
 
 Google allows `http://localhost`, but other addresses must use HTTPS.
 
+## Testing
+
+- **Automated:** `cd backend && npm test` runs the OAuth suite in [backend/tests/oauth.test.js](../backend/tests/oauth.test.js) with mocked provider responses (no real GitHub or Google calls).
+- **Bruno:** Run **Get Auth Providers** from [bruno/](../bruno/) against Local or Production. With credentials unset, the response lists only `password`; after you set the env vars above and restart the backend, `github` and/or `google` appear. Full sign-in still happens in the browser via **Continue with GitHub/Google** on the login page.
+- **Manual:** Open the client, use a provider button, and confirm you return with a token in the URL fragment and a logged-in session.
+
 ## Data
 
 Linked accounts are stored on the user as `oauthAccounts: [{ provider, providerId }]`, with a unique index so a GitHub or Google account belongs to at most one user. See [erd.md](erd.md).

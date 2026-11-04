@@ -1,0 +1,33 @@
+meta {
+  name: Resend Verification
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/auth/resend-verification
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{email}}"
+  }
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("returns a generic message", function () {
+    expect(res.getBody().message).to.be.a("string");
+  });
+}
+
+docs {
+  Emails a new verification link for an unverified account. Set `email` in
+  the environment (or use `lastRegisteredEmail` after Register by setting
+  email to that value). Without SMTP, read the new link from backend logs.
+}

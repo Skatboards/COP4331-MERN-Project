@@ -1,0 +1,28 @@
+meta {
+  name: Leaderboard
+  type: http
+  seq: 17
+}
+
+get {
+  url: {{baseUrl}}/api/users/leaderboard?sort={{leaderboardSort}}&limit=10
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("returns users ranked by the chosen sort", function () {
+    const sort = res.getBody().sort;
+    expect(["boardsCompleted", "efficiency", "totalClicks"]).to.include(sort);
+    expect(res.getBody().users).to.be.an("array");
+  });
+}
+
+docs {
+  Top players. Env `leaderboardSort` is one of boardsCompleted, efficiency, or
+  totalClicks (default boardsCompleted in the environment file).
+}
