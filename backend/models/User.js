@@ -1,5 +1,6 @@
 
 const mongoose = require('mongoose');
+const { PROVIDERS } = require('../lib/oauth');
 
 const userSchema = new mongoose.Schema(
   {
@@ -43,7 +44,7 @@ const userSchema = new mongoose.Schema(
       type: [
         {
           _id: false,
-          provider: { type: String, enum: ['github', 'google'], required: true },
+          provider: { type: String, enum: Object.keys(PROVIDERS), required: true },
           providerId: { type: String, required: true }
         }
       ],

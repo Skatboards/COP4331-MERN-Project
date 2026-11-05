@@ -2,6 +2,9 @@ const crypto = require('crypto');
 
 // Sign-in providers. Each one is turned on by setting its client ID and
 // secret; everything else about the flow is shared (see routes/oauth.js).
+// The User model takes its allowed providers from here. Adding one also
+// means adding it to the github/google enums in openapi.yaml and to the
+// .env examples.
 const PROVIDERS = {
   github: {
     name: 'GitHub',
