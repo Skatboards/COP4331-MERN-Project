@@ -37,7 +37,7 @@ sequenceDiagram
 ```
 
 - The login token is put in the URL **fragment**, which browsers do not send to servers, so it stays out of logs. The client removes it from the address bar right away.
-- Errors go back to the site as `?oauthError=` with `cancelled` (the player pressed Cancel), `state` (expired or forged), `provider` (the provider could not be reached), or `email` (no verified email).
+- Errors go back to the site as `?oauthError=` with `cancelled` (the player pressed Cancel), `state` (expired or forged), `provider` (the provider could not be reached or took more than 10 seconds to answer), or `email` (no verified email).
 - An existing email and password account with the same email is linked rather than duplicated (the provider must report the email as verified). If that account had already verified its email, its password keeps working. If it had not, its password is removed: whoever set it never proved they own the address, and keeping it would let someone register a victim's email in advance and take over the account once the victim signs in with a provider. Users who signed up with a provider have no password; they can set one with "forgot password".
 - Usernames come from the GitHub login or the part of the Google email before `@`, changed to fit the 3-20 letters, numbers, or `_` rule, with digits added if taken.
 

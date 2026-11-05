@@ -211,6 +211,24 @@ describe('GET /api/auth/:provider/callback', () => {
     assert.equal(tokenRequests.length, 0);
   });
 
+  test('gives every provider request a timeout', async () => {
+    fetch.mock.resetCalls();
+    await signIn('github');
+
+    assert.equal(fetch.mock.callCount(), 3);
+    for (const call of fetch.mock.calls) {
+      assert.ok(call.arguments[1].signal instanceof AbortSignal);
+    }
+  });
+
+  test('reports a provider that cannot be reached', async () => {
+    fetch.mock.mockImplementationOnce(async () => {
+      throw new DOMException('The operation was aborted due to timeout', 'TimeoutError');
+    });
+    const location = await signIn('github');
+    assert.equal(location, 'http://localhost:5173/?oauthError=provider');
+  });
+
   test('reports a cancelled sign-in', async () => {
     const location = await signIn('google', { query: { error: 'access_denied' } });
     assert.equal(location, 'http://localhost:5173/?oauthError=cancelled');

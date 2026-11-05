@@ -69,10 +69,14 @@ function authorizeUrl(id, { state, challenge, redirectUri }) {
   return url.toString();
 }
 
+// A provider that stops answering should not hold the sign-in request open
+const REQUEST_TIMEOUT_MS = 10 * 1000;
+
 async function fetchJson(url, options = {}) {
   const res = await fetch(url, {
     ...options,
-    headers: { Accept: 'application/json', 'User-Agent': 'Sweeple', ...options.headers }
+    headers: { Accept: 'application/json', 'User-Agent': 'Sweeple', ...options.headers },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
   });
   if (!res.ok) {
     throw new Error(`${options.method || 'GET'} ${url} failed with ${res.status}`);
