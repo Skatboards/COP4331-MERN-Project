@@ -8,7 +8,7 @@ const users = [
     lastName: 'Rivera',
     username: 'alexrivera',
     email: 'alex@example.com',
-    passwordHash: 'DEMO_HASH_NOT_FOR_LOGIN',
+    passwordHash: '$2b$12$0J/mqPsV.OLXzN6w3GlL..RyjF5Ge52tEOhJJ2kOvFbFHwhoSxeRK',
     totalClicks: 120,
     boardsCompleted: 6,
     efficiency: 85.5
@@ -18,7 +18,7 @@ const users = [
     lastName: 'Chen',
     username: 'jamiechen',
     email: 'jamie@example.com',
-    passwordHash: 'DEMO_HASH_NOT_FOR_LOGIN',
+    passwordHash: '$2b$12$0J/mqPsV.OLXzN6w3GlL..RyjF5Ge52tEOhJJ2kOvFbFHwhoSxeRK',
     totalClicks: 95,
     boardsCompleted: 5,
     efficiency: 91.2
@@ -28,7 +28,7 @@ const users = [
     lastName: 'Morgan',
     username: 'taylormorgan',
     email: 'taylor@example.com',
-    passwordHash: 'DEMO_HASH_NOT_FOR_LOGIN',
+    passwordHash: '$2b$12$0J/mqPsV.OLXzN6w3GlL..RyjF5Ge52tEOhJJ2kOvFbFHwhoSxeRK',
     totalClicks: 180,
     boardsCompleted: 7,
     efficiency: 72.8
@@ -38,7 +38,7 @@ const users = [
     lastName: 'Patel',
     username: 'sampatel',
     email: 'sam@example.com',
-    passwordHash: 'DEMO_HASH_NOT_FOR_LOGIN',
+    passwordHash: '$2b$12$0J/mqPsV.OLXzN6w3GlL..RyjF5Ge52tEOhJJ2kOvFbFHwhoSxeRK',
     totalClicks: 145,
     boardsCompleted: 6,
     efficiency: 80.4
@@ -48,7 +48,7 @@ const users = [
     lastName: 'Brooks',
     username: 'caseybrooks',
     email: 'casey@example.com',
-    passwordHash: 'DEMO_HASH_NOT_FOR_LOGIN',
+    passwordHash: '$2b$12$0J/mqPsV.OLXzN6w3GlL..RyjF5Ge52tEOhJJ2kOvFbFHwhoSxeRK',
     totalClicks: 65,
     boardsCompleted: 3,
     efficiency: 88.6

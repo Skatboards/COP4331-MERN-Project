@@ -8,6 +8,7 @@ const HomePage = lazy(() => import('./pages/HomePage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const PasswordResetPage = lazy(() => import('./pages/PasswordResetPage'));
+const PlayPage = lazy(() => import('./pages/PlayPage'));
 const HelpDialog = lazy(() => import('./components/HelpDialog'));
 const SignInDialog = lazy(() => import('./components/SignInDialog'));
 
@@ -87,6 +88,7 @@ export default function App() {
       <Suspense fallback={<main className="home-content" aria-busy="true" />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/play" element={<PlayPage />} />
           <Route path="/archive" element={<ArchivePage onSignIn={openSignIn} />} />
           <Route path="/settings" element={<SettingsPage onSignIn={openSignIn} />} />
           <Route path="/reset-password" element={<PasswordResetPage />} />
