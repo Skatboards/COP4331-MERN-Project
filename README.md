@@ -85,15 +85,12 @@ docker compose down
 
 ## Client
 
-The client currently has the sign-in page ([client/src/components/Login.tsx](client/src/components/Login.tsx)), with **Log In** and **Sign Up** tabs:
+The client is a routed React app ([client/src/App.tsx](client/src/App.tsx)): home, play, archive, settings, and password reset pages. Signing in happens in a dialog ([SignInDialog.tsx](client/src/components/SignInDialog.tsx)); the login state lives in [client/src/auth/](client/src/auth/).
 
-- **Continue with GitHub** and **Continue with Google** buttons appear for each provider configured on the server (`GET /api/auth/providers`). See [docs/oauth.md](docs/oauth.md).
-- **Sign Up** ([SignUp.tsx](client/src/components/SignUp.tsx)) creates an email and password account and asks the player to verify their email.
-- Log in with a username or email and password. On success the token and user are saved in `localStorage` and the page shows who is logged in, with a **Log Out** button that clears them.
-- API errors (for example a wrong password) are shown under the form.
-- An account whose email is not verified gets a **Resend Verification Email** button (it needs the email address, not the username).
-- The link in the verification email returns to `/?verified=1`, which shows "Email verified. You can now log in." (`?verified=0` means the link was invalid or expired).
-
+- **Continue with GitHub** and **Continue with Google** buttons appear for each provider configured on the server (`GET /api/auth/providers`). After the provider, the server returns to `/#token=`; the app reads the token once and removes it from the address bar. Errors come back as `?oauthError=` and open the dialog with a message. See [docs/oauth.md](docs/oauth.md).
+- Players can also create an email and password account, which asks them to verify their email, and sign in with a username or email and password. The token and user are saved in `localStorage`.
+- An account whose email is not verified can resend the verification email from the dialog.
+- The link in the verification email returns to `/?verified=1` (or `0` if the link was invalid or expired), which opens the dialog with a message.
 
 ## Running without Docker
 
