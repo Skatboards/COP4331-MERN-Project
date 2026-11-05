@@ -1,0 +1,33 @@
+meta {
+  name: Login - Unverified
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "login": "{{lastRegisteredUsername}}",
+    "password": "demo-password-123"
+  }
+}
+
+tests {
+  test("returns 403 Forbidden", function () {
+    expect(res.getStatus()).to.equal(403);
+  });
+
+  test("returns EMAIL_NOT_VERIFIED", function () {
+    expect(res.getBody().code).to.equal("EMAIL_NOT_VERIFIED");
+  });
+}
+
+docs {
+  Run Register first (do not run Verify Email). Uses the username saved by
+  Register and the same demo password from that request.
+}

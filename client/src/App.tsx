@@ -12,16 +12,26 @@ const PlayPage = lazy(() => import('./pages/PlayPage'));
 const HelpDialog = lazy(() => import('./components/HelpDialog'));
 const SignInDialog = lazy(() => import('./components/SignInDialog'));
 
+const OAUTH_ERRORS: Record<string, string> = {
+  cancelled: 'Sign-in was cancelled.',
+  state: 'That sign-in link expired. Try again.',
+  provider: 'Could not reach the sign-in provider. Try again.',
+  email: 'That account has no verified email address, so it cannot be used to sign in.',
+  failed: 'Sign-in failed. Try again.',
+};
+
 function hasAuthNotice(searchParams: URLSearchParams) {
   const verified = searchParams.get('verified');
   const reset = searchParams.get('passwordReset');
-  return verified === '1' || verified === '0' || reset === '1';
+  return verified === '1' || verified === '0' || reset === '1' || searchParams.has('oauthError');
 }
 
 function getAuthNotice(searchParams: URLSearchParams) {
   const verified = searchParams.get('verified');
   const reset = searchParams.get('passwordReset');
+  const oauthError = searchParams.get('oauthError');
   if (reset === '1') return 'Your password has been reset. Sign in with your new password.';
+  if (oauthError !== null) return OAUTH_ERRORS[oauthError] ?? 'Sign-in failed. Try again.';
   return verified === '1'
     ? 'Email verified. You can now sign in.'
     : 'That verification link is invalid or has expired.';
@@ -71,6 +81,7 @@ export default function App() {
     const cleanParams = new URLSearchParams(searchParams);
     cleanParams.delete('verified');
     cleanParams.delete('passwordReset');
+    cleanParams.delete('oauthError');
     setSearchParams(cleanParams, { replace: true });
   }
 

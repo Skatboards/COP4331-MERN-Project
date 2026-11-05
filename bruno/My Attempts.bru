@@ -1,0 +1,30 @@
+meta {
+  name: My Attempts
+  type: http
+  seq: 16
+}
+
+get {
+  url: {{baseUrl}}/api/users/me/attempts
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("returns an attempts array", function () {
+    expect(res.getBody().attempts).to.be.an("array");
+  });
+}
+
+docs {
+  The logged-in user's games, newest first. Run Login (and optionally Record
+  Attempt) first.
+}

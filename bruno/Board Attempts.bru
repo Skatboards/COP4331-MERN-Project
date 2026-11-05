@@ -1,0 +1,27 @@
+meta {
+  name: Board Attempts
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/api/boards/{{seed}}/attempts
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("returns attempts for the seed", function () {
+    expect(res.getBody().seed).to.equal(bru.getVar("seed"));
+    expect(res.getBody().attempts).to.be.an("array");
+  });
+}
+
+docs {
+  Best finished games on a board. Uses env `seed`. Returns 404 if the board has
+  never been played.
+}

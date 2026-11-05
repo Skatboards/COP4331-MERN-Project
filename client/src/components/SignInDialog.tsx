@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ApiError } from '../api/client';
-import type { RegistrationInput } from '../api/auth';
+import { getProviders } from '../api/auth';
+import type { Provider, RegistrationInput } from '../api/auth';
 import Modal from './Modal';
 
 type DialogMode = 'login' | 'register' | 'forgot-password' | 'check-email';
@@ -30,6 +31,27 @@ export default function SignInDialog({
   const [loginName, setLoginName] = useState('');
   const [unverifiedLogin, setUnverifiedLogin] = useState('');
   const [resendEmail, setResendEmail] = useState('');
+  const [providers, setProviders] = useState<Provider[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    getProviders()
+      .then(({ providers: list }) => { if (active) setProviders(list.filter((p) => p.id !== 'password')); })
+      .catch(() => { /* Email and password still work */ });
+    return () => { active = false; };
+  }, []);
+
+  // Plain links: the server redirects to GitHub or Google and back
+  const providerButtons = providers.length > 0 && (
+    <>
+      <div className="provider-buttons">
+        {providers.map((p) => (
+          <a key={p.id} className="provider-button full-button" href={`/api/auth/${p.id}`}>Continue with {p.name}</a>
+        ))}
+      </div>
+      <p className="auth-divider">or with email</p>
+    </>
+  );
 
   function switchMode(nextMode: DialogMode) {
     setMode(nextMode);
@@ -129,6 +151,7 @@ export default function SignInDialog({
       {mode === 'login' && (
         <>
           {verificationNotice && <p className="auth-notice" role="status">{verificationNotice}</p>}
+          {providerButtons}
           <form className="sign-in-form" onSubmit={submitLogin}>
             <label>Email or username<input name="login" required autoComplete="username" placeholder="Your email or username" value={loginName} onChange={(event) => setLoginName(event.target.value)} /></label>
             <label>Password<input name="password" required type="password" autoComplete="current-password" /></label>
@@ -149,6 +172,7 @@ export default function SignInDialog({
       {mode === 'register' && (
         <>
           <p className="dialog-intro">Create an account to save your results.</p>
+          {providerButtons}
           <form className="sign-in-form" onSubmit={submitRegistration}>
             <label>Username<input name="username" required minLength={3} maxLength={20} pattern="[A-Za-z0-9_]+" autoComplete="username" /></label>
             <label>Email<input name="email" required type="email" autoComplete="email" /></label>

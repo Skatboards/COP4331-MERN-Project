@@ -57,6 +57,8 @@ sequenceDiagram
     end
 ```
 
+Players can also sign up and log in with GitHub or Google; that flow is in [oauth.md](oauth.md).
+
 `POST /api/auth/resend-verification` replaces the token and sends a new link. It answers the same way whether or not the email is registered.
 
 ## Log in and authenticated requests

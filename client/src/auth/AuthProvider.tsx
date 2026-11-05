@@ -9,11 +9,26 @@ import { AuthContext } from './AuthContext';
 const TOKEN_KEY = 'sweeple-token';
 const USER_KEY = 'sweeple-user';
 
+// After GitHub or Google, the server sends the browser to /#token=...
+// Read once when the app loads, and removed from the address bar.
+function takeTokenFromUrl(): string | null {
+  const match = window.location.hash.match(/^#token=([^&]+)$/);
+  if (!match) return null;
+  window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  return decodeURIComponent(match[1]);
+}
+
+const tokenFromUrl = takeTokenFromUrl();
+
 function readToken(): string | null {
+  if (tokenFromUrl) return tokenFromUrl;
+
   try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
 }
 
 function readUser(): CurrentUser | null {
+  // A new sign-in replaces whoever was saved; the token effect loads the user
+  if (tokenFromUrl) return null;
   try {
     if (!localStorage.getItem(TOKEN_KEY)) return null;
     const saved = localStorage.getItem(USER_KEY);

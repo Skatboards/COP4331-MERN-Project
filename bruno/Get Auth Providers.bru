@@ -1,0 +1,27 @@
+meta {
+  name: Get Auth Providers
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/auth/providers
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("lists email and password sign-in", function () {
+    const ids = res.getBody().providers.map((p) => p.id);
+    expect(ids).to.include("password");
+  });
+}
+
+docs {
+  Shows enabled sign-in methods. GitHub and Google appear only when the
+  server has their client ID and secret in the environment.
+}

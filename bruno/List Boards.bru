@@ -1,0 +1,33 @@
+meta {
+  name: List Boards
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/api/boards
+  body: none
+  auth: none
+}
+
+script:post-response {
+  const boards = res.getBody().boards;
+  if (res.getStatus() === 200 && boards && boards.length > 0) {
+    bru.setVar("seed", boards[0].seed);
+  }
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("returns a boards array", function () {
+    expect(res.getBody().boards).to.be.an("array");
+  });
+}
+
+docs {
+  Lists recent boards, newest first. Saves the first board's seed as `seed` for
+  Get Board and Board Attempts when the list is not empty.
+}

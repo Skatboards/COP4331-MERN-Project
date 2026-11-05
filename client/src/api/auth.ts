@@ -8,6 +8,12 @@ export type RegistrationInput = {
   password: string;
 };
 export type MessageResponse = { message: string };
+export type Provider = { id: string; name: string };
+
+// The ways to sign in that the server has turned on
+export function getProviders() {
+  return apiRequest<{ providers: Provider[] }>('/auth/providers');
+}
 
 export function login(loginName: string, password: string) {
   return apiRequest<LoginResponse>('/auth/login', {

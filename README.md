@@ -16,10 +16,10 @@ Solve the daily minesweeper board! Every player gets the same board each day and
 .
 ├── client/          React and Vite frontend
 ├── backend/         Express API (see backend/openapi.yaml)
-├── bruno/           Bruno requests for testing the API
+├── bruno/           Bruno collection for auth API requests (with tests)
 ├── mongo/init/      MongoDB initialization directory
 ├── deploy/          Droplet deployment notes and scripts
-├── docs/            Diagrams (system design, data flow, ERD) and the API lab walkthrough
+├── docs/            Diagrams (system design, data flow, ERD), OAuth setup, API lab walkthrough
 ├── compose.yaml     Local development stack
 └── .github/         Continuous integration configuration
 ```
@@ -50,6 +50,8 @@ cp .env.example .env
 | `APP_URL` | `http://localhost:5173` | Site address used in the links in emails |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | empty, `587`, `false` | Outgoing mail server. With `SMTP_HOST` empty, emails are printed to the backend log |
 | `MAIL_FROM` | `Sweeple <no-reply@localhost>` | Sender of verification and reset emails |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | empty | Turns on "Continue with GitHub" (see [docs/oauth.md](docs/oauth.md)) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | empty | Turns on "Continue with Google" |
 
 ## Running with Docker Compose
 
@@ -83,14 +85,12 @@ docker compose down
 
 ## Client
 
-The client currently has the login page ([client/src/components/Login.tsx](client/src/components/Login.tsx)):
+The client is a routed React app ([client/src/App.tsx](client/src/App.tsx)): home, play, archive, settings, and password reset pages. Signing in happens in a dialog ([SignInDialog.tsx](client/src/components/SignInDialog.tsx)); the login state lives in [client/src/auth/](client/src/auth/).
 
-- Log in with a username or email and password. On success the token and user are saved in `localStorage` and the page shows who is logged in, with a **Log Out** button that clears them.
-- API errors (for example a wrong password) are shown under the form.
-- An account whose email is not verified gets a **Resend Verification Email** button (it needs the email address, not the username).
-- The link in the verification email returns to `/?verified=1`, which shows "Email verified. You can now log in." (`?verified=0` means the link was invalid or expired).
-
-There is no registration form yet; create accounts with `POST /api/auth/register` (for example with the Bruno collection).
+- **Continue with GitHub** and **Continue with Google** buttons appear for each provider configured on the server (`GET /api/auth/providers`). After the provider, the server returns to `/#token=`; the app reads the token once and removes it from the address bar. Errors come back as `?oauthError=` and open the dialog with a message. See [docs/oauth.md](docs/oauth.md).
+- Players can also create an email and password account, which asks them to verify their email, and sign in with a username or email and password. The token and user are saved in `localStorage`.
+- An account whose email is not verified can resend the verification email from the dialog.
+- The link in the verification email returns to `/?verified=1` (or `0` if the link was invalid or expired), which opens the dialog with a message.
 
 ## Running without Docker
 
@@ -135,9 +135,25 @@ npm test
 
 `npm test` runs the API tests in `backend/tests/` (at least one per endpoint) against a temporary in-memory MongoDB 7.0. It needs no running database; the first run downloads the MongoDB binary.
 
+### Bruno (API requests)
+
+Use the [bruno/](bruno/) folder as the collection in the **Bruno VS Code extension**, the Bruno desktop app, or the CLI. For local work, select the **Local** environment (`http://localhost:5173`) with Docker Compose running. Step-by-step for the extension: [bruno/README.md](bruno/README.md#vs-code--cursor-bruno-extension).
+
+From the `bruno/` folder on the command line:
+
+```bash
+cd bruno
+npx @usebruno/cli@4.3.0 run --env Local \
+  --env-var login=USERNAME \
+  --env-var email=USER@example.com \
+  --env-var password=YOUR_PASSWORD
+```
+
+The collection covers **auth**, **boards**, and **users** endpoints that fit Bruno (register through profile, list/record attempts, leaderboard, search). OAuth sign-in itself is browser-only; use **Get Auth Providers** to see what the server exposes. Full request list, environment variables, and flows: [bruno/README.md](bruno/README.md). API Role lab demo script: [docs/api-lab-demo.md](docs/api-lab-demo.md).
+
 ## API
 
-All requests and responses are JSON. The full description is in [backend/openapi.yaml](backend/openapi.yaml); import it into SwaggerHub to try the endpoints. The [bruno/](bruno/) folder has ready-made [Bruno](https://www.usebruno.com/) requests for register and login, with tests; see [bruno/README.md](bruno/README.md) and the lab walkthrough in [docs/api-lab-demo.md](docs/api-lab-demo.md). Endpoints marked *login* need an `Authorization: Bearer <token>` header with the token from `POST /api/auth/login`.
+All requests and responses are JSON. The full description is in [backend/openapi.yaml](backend/openapi.yaml); import it into SwaggerHub to try the endpoints. For manual and scripted checks against a running stack, use the [bruno/](bruno/) collection ([bruno/README.md](bruno/README.md)). Endpoints marked *login* need an `Authorization: Bearer <token>` header with the token from `POST /api/auth/login`.
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
@@ -148,6 +164,9 @@ All requests and responses are JSON. The full description is in [backend/openapi
 | `POST` | `/api/auth/verify-email` | Verify with `{ token }` (for the mobile app) |
 | `POST` | `/api/auth/resend-verification` | Email a new verification link |
 | `POST` | `/api/auth/login` | Log in with `{ login, password }` (username or email); returns a token. Unverified accounts get `403` |
+| `GET` | `/api/auth/providers` | Ways to sign in: `password`, plus `github` and `google` when configured |
+| `GET` | `/api/auth/github`, `/api/auth/google` | Open in a browser to sign in with that provider; returns to the site with `#token=` |
+| `GET` | `/api/auth/:provider/callback` | Where the provider sends the browser back |
 | `POST` | `/api/auth/forgot-password` | Email a password reset link to `/reset-password?token=` on the site |
 | `POST` | `/api/auth/reset-password` | Set a new password with `{ token, password }` |
 | `GET` | `/api/users/me` | *login* The user's profile and stats |
@@ -159,7 +178,7 @@ All requests and responses are JSON. The full description is in [backend/openapi
 | `GET` | `/api/boards/:seed/attempts` | Best finished games on a board |
 | `POST` | `/api/boards/:seed/attempts` | *login* Record a finished game `{ clicks, status: "won" \| "lost", efficiency }`; one per user per board |
 
-Passwords are hashed with bcrypt. Verification and reset tokens are single-use, expire (24 hours and 1 hour), and only their SHA-256 hashes are stored. The forgot-password and resend endpoints answer the same way whether or not an email is registered.
+Passwords are hashed with bcrypt. GitHub and Google sign-in use the authorization code flow with state and PKCE. Verification and reset tokens are single-use, expire (24 hours and 1 hour), and only their SHA-256 hashes are stored. The forgot-password and resend endpoints answer the same way whether or not an email is registered.
 
 The backend receives `MONGODB_URI` from Compose and connects with Mongoose. `backend/server.js` is the entry point: it sets up the app and mounts the routes in `backend/routes/`, then connects to MongoDB and starts listening when run directly (tests load it with `require()` instead).
 

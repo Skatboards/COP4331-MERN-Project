@@ -25,6 +25,14 @@ script:pre-request {
   bru.setVar("newUsername", "demo" + Date.now().toString().slice(-8));
 }
 
+script:post-response {
+  if (res.getStatus() === 201) {
+    const user = res.getBody().user;
+    bru.setVar("lastRegisteredUsername", user.username);
+    bru.setVar("lastRegisteredEmail", user.email);
+  }
+}
+
 tests {
   test("returns 201 Created", function () {
     expect(res.getStatus()).to.equal(201);

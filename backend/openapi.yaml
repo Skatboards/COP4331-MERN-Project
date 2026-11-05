@@ -162,6 +162,55 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /api/auth/providers:
+    get:
+      tags: [Auth]
+      summary: Ways to sign in
+      description: Always includes `password`; `github` and `google` appear when the server has their client ID and secret.
+      responses:
+        '200':
+          description: Enabled sign-in methods
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  providers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string, enum: [password, github, google] }
+                        name: { type: string, example: GitHub }
+
+  /api/auth/{provider}:
+    get:
+      tags: [Auth]
+      summary: Sign in with GitHub or Google (open in a browser)
+      description: Redirects to the provider's sign-in page with a state value and PKCE challenge, and sets a short-lived `oauth_login` cookie.
+      parameters:
+        - $ref: '#/components/parameters/Provider'
+      responses:
+        '302': { description: Redirect to the provider }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/auth/{provider}/callback:
+    get:
+      tags: [Auth]
+      summary: Return from GitHub or Google (called by the provider)
+      description: >
+        Checks the state, exchanges the code, and signs in the user with this provider account.
+        If there is none, a user with the same verified email is linked; otherwise a new, verified user is created.
+        Redirects to `APP_URL/#token=<login token>`, or to `APP_URL/?oauthError=cancelled|state|provider|email`.
+      parameters:
+        - $ref: '#/components/parameters/Provider'
+        - { name: code, in: query, schema: { type: string } }
+        - { name: state, in: query, schema: { type: string } }
+        - { name: error, in: query, schema: { type: string } }
+      responses:
+        '302': { description: Redirect back to the site }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/auth/forgot-password:
     post:
       tags: [Auth]
@@ -385,6 +434,11 @@ components:
       bearerFormat: JWT
 
   parameters:
+    Provider:
+      name: provider
+      in: path
+      required: true
+      schema: { type: string, enum: [github, google] }
     Limit:
       name: limit
       in: query
@@ -450,6 +504,10 @@ components:
         username: { type: string }
         email: { type: string }
         emailVerified: { type: boolean }
+        providers:
+          type: array
+          description: Linked sign-in providers
+          items: { type: string, enum: [github, google] }
         totalClicks: { type: integer }
         boardsCompleted: { type: integer }
         efficiency: { type: number }

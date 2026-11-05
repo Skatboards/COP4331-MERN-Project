@@ -1,0 +1,51 @@
+meta {
+  name: Record Attempt
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/api/boards/{{recordSeed}}/attempts
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "clicks": 42,
+    "status": "won",
+    "efficiency": 85.5
+  }
+}
+
+script:pre-request {
+  // New seed each run so the same user can record again (one attempt per user per board)
+  bru.setVar("recordSeed", "daily-bruno-" + Date.now().toString().slice(-8));
+}
+
+script:post-response {
+  if (res.getStatus() === 201) {
+    bru.setVar("seed", res.getBody().board.seed);
+  }
+}
+
+tests {
+  test("returns 201 Created", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("returns attempt and board", function () {
+    const body = res.getBody();
+    expect(body.attempt.status).to.equal("won");
+    expect(body.board.seed).to.equal(bru.getVar("recordSeed"));
+  });
+}
+
+docs {
+  Records a finished game for the logged-in user. Run Login first. Uses a fresh
+  `recordSeed` per run; updates env `seed` on success for follow-up requests.
+}

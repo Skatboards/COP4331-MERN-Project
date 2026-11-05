@@ -1,0 +1,26 @@
+meta {
+  name: Get Board
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/boards/{{seed}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("returns the requested seed", function () {
+    expect(res.getBody().board.seed).to.equal(bru.getVar("seed"));
+  });
+}
+
+docs {
+  Global stats for one board. Set `seed` in the environment (for example
+  `daily-2026-11-04`, matching the client daily board), or run List Boards first.
+}

@@ -22,6 +22,8 @@ app.get('/api/ping', (req, res) => {
 });
 
 app.use('/api/auth', require('./routes/auth'));
+// After routes/auth, so its fixed paths win over /api/auth/:provider
+app.use('/api/auth', require('./routes/oauth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/boards', require('./routes/boards'));
 
