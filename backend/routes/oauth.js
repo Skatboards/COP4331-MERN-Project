@@ -67,10 +67,25 @@ async function availableUsername(suggested) {
   throw new Error('Could not find a free username');
 }
 
+// Two sign-ins at the same moment can both pass the checks above and then
+// clash on a unique index (same username, email, or provider account). The
+// second one then looks again, which finds the first one's user or a free
+// username.
+async function findOrCreateUser(provider, profile, attempts = 3) {
+  try {
+    return await findOrCreateUserOnce(provider, profile);
+  } catch (err) {
+    if (err.code === 11000 && attempts > 1) {
+      return findOrCreateUser(provider, profile, attempts - 1);
+    }
+    throw err;
+  }
+}
+
 // The user who signed in with this provider before, else the user with the
 // same verified email (now linked), else a new user. Returns null if the
 // provider did not give a verified email.
-async function findOrCreateUser(provider, profile) {
+async function findOrCreateUserOnce(provider, profile) {
   const account = { provider, providerId: profile.providerId };
 
   const returning = await User.findOne({ oauthAccounts: { $elemMatch: account } });
@@ -177,7 +192,13 @@ router.get('/:provider/callback', async (req, res) => {
     return backToSite(res, 'provider');
   }
 
-  const user = await findOrCreateUser(provider, profile);
+  let user;
+  try {
+    user = await findOrCreateUser(provider, profile);
+  } catch (err) {
+    console.error(`Sign-in with ${provider} could not save the user:`, err.message);
+    return backToSite(res, 'failed');
+  }
   if (!user) {
     return backToSite(res, 'email');
   }

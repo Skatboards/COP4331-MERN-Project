@@ -197,6 +197,20 @@ describe('GET /api/auth/:provider/callback', () => {
     assert.match(me.body.user.username, /^octo_cat_\d{4}$/);
   });
 
+  test('picks another username when someone takes it at the same moment', async () => {
+    await createLoggedInUser({ username: 'octo_cat' });
+    // The first check misses the user, as if they were created right after it
+    const exists = mock.method(User, 'exists');
+    exists.mock.mockImplementationOnce(async () => null);
+    try {
+      const token = tokenFrom(await signIn('github'));
+      const me = await request(app).get('/api/users/me').set('Authorization', `Bearer ${token}`);
+      assert.match(me.body.user.username, /^octo_cat_\d{4}$/);
+    } finally {
+      exists.mock.restore();
+    }
+  });
+
   test('refuses an account without a verified email', async () => {
     github.emails = [{ email: 'octo@example.com', primary: true, verified: false }];
     const location = await signIn('github');
