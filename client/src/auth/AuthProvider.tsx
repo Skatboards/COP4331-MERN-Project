@@ -1,9 +1,10 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ApiError } from '../api/client';
 import * as authApi from '../api/auth';
 import { getCurrentUser } from '../api/users';
 import type { CurrentUser } from '../api/types';
+import { AuthContext } from './AuthContext';
 
 const TOKEN_KEY = 'sweeple-token';
 const USER_KEY = 'sweeple-user';
@@ -40,33 +41,14 @@ function clearStoredSession() {
   }
 }
 
-type AuthContextValue = {
-  token: string | null;
-  user: CurrentUser | null;
-  loading: boolean;
-  sessionError: string;
-  login: (loginName: string, password: string) => Promise<void>;
-  register: (input: authApi.RegistrationInput) => Promise<string>;
-  resendVerification: (email: string) => Promise<string>;
-  requestPasswordReset: (email: string) => Promise<string>;
-  resetPassword: (token: string, password: string) => Promise<string>;
-  logout: () => void;
-};
-
-const AuthContext = createContext<AuthContextValue | null>(null);
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState(readToken);
   const [user, setUser] = useState<CurrentUser | null>(readUser);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(readToken()));
   const [sessionError, setSessionError] = useState('');
 
   useEffect(() => {
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
+    if (!token) return;
 
     let active = true;
     getCurrentUser(token)
@@ -98,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     saveSession(result.token, result.user);
     setToken(result.token);
     setUser(result.user);
+    setLoading(false);
     setSessionError('');
   }
 
@@ -125,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearStoredSession();
     setToken(null);
     setUser(null);
+    setLoading(false);
     setSessionError('');
   }, []);
 
@@ -136,10 +120,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within AuthProvider');
-  return context;
 }

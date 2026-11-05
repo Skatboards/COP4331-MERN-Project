@@ -8,10 +8,14 @@ export default function ScoreCard() {
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
 
-  useEffect(() => {
-    let active = true;
+  function retry() {
     setLoading(true);
     setError('');
+    setReload((value) => value + 1);
+  }
+
+  useEffect(() => {
+    let active = true;
     getLeaderboard('boardsCompleted', 10)
       .then(({ users }) => { if (active) setPlayers(users); })
       .catch((requestError: unknown) => {
@@ -25,7 +29,7 @@ export default function ScoreCard() {
     <section className="scores-card" aria-labelledby="leaderboard-title">
       <div className="section-heading"><h2 id="leaderboard-title">Player leaderboard</h2><span className="trophy" aria-hidden="true">✦</span></div>
       {loading ? <p className="api-state" role="status">Loading leaderboard…</p>
-        : error ? <div className="api-state api-error-state" role="alert"><span>{error}</span><button className="text-button" onClick={() => setReload((value) => value + 1)}>Try again</button></div>
+          : error ? <div className="api-state api-error-state" role="alert"><span>{error}</span><button className="text-button" onClick={retry}>Try again</button></div>
           : players.length === 0 ? <p className="api-state">No leaderboard results yet.</p>
             : <ol className="score-list">
               {players.map((player, index) => (

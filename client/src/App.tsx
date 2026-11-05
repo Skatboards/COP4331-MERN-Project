@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 import SiteHeader from './components/SiteHeader';
-import { useAuth } from './auth/AuthProvider';
+import { useAuth } from './auth/useAuth';
 import './App.css';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -12,9 +12,25 @@ const PlayPage = lazy(() => import('./pages/PlayPage'));
 const HelpDialog = lazy(() => import('./components/HelpDialog'));
 const SignInDialog = lazy(() => import('./components/SignInDialog'));
 
+function hasAuthNotice(searchParams: URLSearchParams) {
+  const verified = searchParams.get('verified');
+  const reset = searchParams.get('passwordReset');
+  return verified === '1' || verified === '0' || reset === '1';
+}
+
+function getAuthNotice(searchParams: URLSearchParams) {
+  const verified = searchParams.get('verified');
+  const reset = searchParams.get('passwordReset');
+  if (reset === '1') return 'Your password has been reset. Sign in with your new password.';
+  return verified === '1'
+    ? 'Email verified. You can now sign in.'
+    : 'That verification link is invalid or has expired.';
+}
+
 export default function App() {
   const { user, login, register, resendVerification, requestPasswordReset, logout, sessionError } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const urlAuthNotice = hasAuthNotice(searchParams);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
       return localStorage.getItem('sweeple-theme') === 'dark' ? 'dark' : 'light';
@@ -24,8 +40,8 @@ export default function App() {
   });
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [signInOpen, setSignInOpen] = useState(false);
-  const [verificationNotice, setVerificationNotice] = useState('');
+  const [signInOpen, setSignInOpen] = useState(urlAuthNotice);
+  const verificationNotice = urlAuthNotice ? getAuthNotice(searchParams) : '';
 
   useEffect(() => {
     document.documentElement.style.colorScheme = theme;
@@ -39,21 +55,6 @@ export default function App() {
     }
   }, [theme]);
 
-  useEffect(() => {
-    const verified = searchParams.get('verified');
-    const reset = searchParams.get('passwordReset');
-    if (verified === '1' || verified === '0' || reset === '1') {
-      setVerificationNotice(reset === '1'
-        ? 'Your password has been reset. Sign in with your new password.'
-        : verified === '1' ? 'Email verified. You can now sign in.' : 'That verification link is invalid or has expired.');
-      setSignInOpen(true);
-      const cleanParams = new URLSearchParams(searchParams);
-      cleanParams.delete('verified');
-      cleanParams.delete('passwordReset');
-      setSearchParams(cleanParams, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
-
   const openSignIn = useCallback(() => {
     setMenuOpen(false);
     setSignInOpen(true);
@@ -62,13 +63,15 @@ export default function App() {
   function accountAction() {
     setMenuOpen(false);
     if (user) logout();
-    setVerificationNotice('');
     setSignInOpen(true);
   }
 
   function closeSignIn() {
     setSignInOpen(false);
-    setVerificationNotice('');
+    const cleanParams = new URLSearchParams(searchParams);
+    cleanParams.delete('verified');
+    cleanParams.delete('passwordReset');
+    setSearchParams(cleanParams, { replace: true });
   }
 
   return (

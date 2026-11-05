@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getMyAttempts } from '../api/users';
 import { ApiError } from '../api/client';
 import type { Attempt } from '../api/types';
-import { useAuth } from '../auth/AuthProvider';
+import { useAuth } from '../auth/useAuth';
 
 type ArchivePageProps = { onSignIn: () => void };
 
@@ -27,16 +27,16 @@ export default function ArchivePage({ onSignIn }: ArchivePageProps) {
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
 
-  useEffect(() => {
-    if (!token) {
-      setAttempts([]);
-      setLoading(false);
-      return;
-    }
-
-    let active = true;
+  function retry() {
     setLoading(true);
     setError('');
+    setReload((value) => value + 1);
+  }
+
+  useEffect(() => {
+    if (!token) return;
+
+    let active = true;
     getMyAttempts(token)
       .then(({ attempts: userAttempts }) => { if (active) setAttempts(userAttempts); })
       .catch((requestError: unknown) => {
@@ -60,7 +60,7 @@ export default function ArchivePage({ onSignIn }: ArchivePageProps) {
       </div>
       {!user ? <section className="empty-state"><p>Sign in to see your completed boards.</p><button className="primary-button" onClick={onSignIn}>Sign in</button></section>
         : loading ? <p className="api-state" role="status">Loading your games…</p>
-          : error ? <div className="empty-state api-error-state" role="alert"><p>{error}</p><button className="text-button" onClick={() => setReload((value) => value + 1)}>Try again</button></div>
+          : error ? <div className="empty-state api-error-state" role="alert"><p>{error}</p><button className="text-button" onClick={retry}>Try again</button></div>
             : attempts.length === 0 ? <p className="api-state">You haven’t played any boards yet.</p>
               : <div className="archive-grid">
                 {attempts.map((attempt, index) => {
