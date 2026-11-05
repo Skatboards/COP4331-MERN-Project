@@ -1,22 +1,41 @@
-const scores = [
-  { name: 'MossyBadger', time: '00:42' },
-  { name: 'pixelpete', time: '00:51' },
-  { name: 'you', time: '01:08' },
-];
+import { useEffect, useState } from 'react';
+import { getLeaderboard } from '../api/users';
+import type { Player } from '../api/types';
 
 export default function ScoreCard() {
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [reload, setReload] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError('');
+    getLeaderboard('boardsCompleted', 10)
+      .then(({ users }) => { if (active) setPlayers(users); })
+      .catch((requestError: unknown) => {
+        if (active) setError(requestError instanceof Error ? requestError.message : 'Could not load the leaderboard.');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [reload]);
+
   return (
-    <section className="scores-card">
-      <div className="section-heading"><h2>Daily top scores</h2><span className="trophy" aria-hidden="true">✦</span></div>
-      <ol className="score-list">
-        {scores.map((score, index) => (
-          <li key={score.name}>
-            <span className={`rank rank-${index + 1}`}>{String(index + 1).padStart(2, '0')}</span>
-            <span className="score-name">{score.name}</span>
-            <time>{score.time}</time>
-          </li>
-        ))}
-      </ol>
+    <section className="scores-card" aria-labelledby="leaderboard-title">
+      <div className="section-heading"><h2 id="leaderboard-title">Player leaderboard</h2><span className="trophy" aria-hidden="true">✦</span></div>
+      {loading ? <p className="api-state" role="status">Loading leaderboard…</p>
+        : error ? <div className="api-state api-error-state" role="alert"><span>{error}</span><button className="text-button" onClick={() => setReload((value) => value + 1)}>Try again</button></div>
+          : players.length === 0 ? <p className="api-state">No leaderboard results yet.</p>
+            : <ol className="score-list">
+              {players.map((player, index) => (
+                <li key={player._id}>
+                  <span className={`rank rank-${index + 1}`}>{String(index + 1).padStart(2, '0')}</span>
+                  <span className="score-name">{player.username}</span>
+                  <span className="score-value">{player.boardsCompleted} boards</span>
+                </li>
+              ))}
+            </ol>}
     </section>
   );
 }

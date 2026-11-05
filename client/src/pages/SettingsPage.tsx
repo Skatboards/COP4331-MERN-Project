@@ -1,6 +1,10 @@
 import { useState } from 'react';
+import { useAuth } from '../auth/AuthProvider';
 
-export default function SettingsPage() {
+type SettingsPageProps = { onSignIn: () => void };
+
+export default function SettingsPage({ onSignIn }: SettingsPageProps) {
+  const { user } = useAuth();
   const [sound, setSound] = useState(true);
   const [contrast, setContrast] = useState(false);
 
@@ -16,6 +20,18 @@ export default function SettingsPage() {
           <div><strong>High contrast</strong><p>Increase contrast on board tiles and text.</p></div>
           <button className={`toggle ${contrast ? 'on' : ''}`} role="switch" aria-checked={contrast} onClick={() => setContrast(!contrast)}><span /></button>
         </div>
+      </section>
+      <section className="settings-card account-details">
+        <h2>Account</h2>
+        {user ? <>
+          <div className="account-detail-row"><span>Username</span><strong>{user.username}</strong></div>
+          <div className="account-detail-row"><span>Email</span><strong>{user.email}</strong></div>
+          <div className="account-stats">
+            <div><strong>{user.boardsCompleted}</strong><span>Boards completed</span></div>
+            <div><strong>{user.totalClicks}</strong><span>Total clicks</span></div>
+            <div><strong>{user.efficiency}%</strong><span>Efficiency</span></div>
+          </div>
+        </> : <div className="account-detail-row"><span>Sign in to view your profile stats.</span><button className="text-button" onClick={onSignIn}>Sign in</button></div>}
       </section>
     </main>
   );
