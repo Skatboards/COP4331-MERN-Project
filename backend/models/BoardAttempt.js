@@ -39,6 +39,11 @@ const boardAttemptSchema = new mongoose.Schema(
       default: 'in_progress'
     },
 
+    gameState: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
+    },
+
     completedAt: {
       type: Date,
       default: null

@@ -11,6 +11,42 @@ const SEED_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const BOARD_FIELDS =
   'seed totalAttempts totalCompletions globalCompletionPercentage averageClicks averageEfficiency createdAt';
 
+// GET /api/boards/:seed/progress - Resume this user's game
+router.get('/:seed/progress', requireAuth, async (req, res) => {
+  const board = await Board.findOne({ seed: req.params.seed });
+  if (!board) return res.json({ game: null });
+  const attempt = await BoardAttempt.findOne({ userId: req.userId, boardId: board._id, status: 'in_progress' });
+  res.json({ game: attempt?.gameState ?? null });
+});
+
+// PUT is represented by POST in apiRequest; save the user's current game.
+router.post('/:seed/progress', requireAuth, async (req, res) => {
+  const game = req.body?.game;
+  if (!game || game.seed !== req.params.seed || !['playing', 'won', 'lost'].includes(game.status) ||
+      !Array.isArray(game.revealed) || !Array.isArray(game.flags) ||
+      !Number.isInteger(game.clicks) || game.clicks < 0 ||
+      !(game.explodedAt === null || Number.isInteger(game.explodedAt))) {
+    return res.status(400).json({ error: 'Invalid game state' });
+  }
+  const board = await Board.findOneAndUpdate(
+    { seed: req.params.seed }, { $setOnInsert: { seed: req.params.seed } },
+    { upsert: true, returnDocument: 'after' }
+  );
+  if (game.status !== 'playing') {
+    return res.status(400).json({ error: 'Finished games must be submitted as attempts' });
+  }
+  const existing = await BoardAttempt.findOne({ userId: req.userId, boardId: board._id });
+  if (existing && existing.status !== 'in_progress') {
+    return res.status(409).json({ error: 'You have already played this board' });
+  }
+  await BoardAttempt.findOneAndUpdate(
+    { userId: req.userId, boardId: board._id },
+    { $set: { gameState: game, clicks: game.clicks, status: 'in_progress', completed: false } },
+    { upsert: true, returnDocument: 'after' }
+  );
+  res.json({ saved: true });
+});
+
 // Rejects requests whose :seed is not a valid board seed
 router.param('seed', (req, res, next, seed) => {
   if (!SEED_PATTERN.test(seed)) {
@@ -113,15 +149,20 @@ router.post('/:seed/attempts', requireAuth, async (req, res) => {
   const won = status === 'won';
   let attempt;
   try {
-    attempt = await BoardAttempt.create({
+    attempt = await BoardAttempt.findOneAndUpdate(
+      { userId: req.userId, boardId: board._id, status: 'in_progress' },
+      { $set: {
       userId: req.userId,
       boardId: board._id,
       clicks,
       completed: won,
       efficiency,
       status,
-      completedAt: new Date()
-    });
+      completedAt: new Date(),
+      gameState: null
+      } },
+      { upsert: true, returnDocument: 'after' }
+    );
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({ error: 'You have already played this board' });
