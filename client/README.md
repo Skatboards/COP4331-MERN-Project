@@ -1,75 +1,41 @@
-# React + TypeScript + Vite
+# Sweeple frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Sweeple is a React, TypeScript, and Vite Minesweeper game. The frontend provides a daily puzzle, account sign-in and registration, player settings, a board archive, and a leaderboard. Guest game progress and theme preferences are stored locally. Signed-in game progress, account data, and leaderboard results use the backend API under `/api`.
 
-Currently, two official plugins are available:
+## Main pages
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- `/` — landing page with the play link, rules, and player leaderboard.
+- `/play` — today’s playable board.
+- `/archive` — signed-in users’ past attempts and player stats.
+- `/archive/:seed` — read-only view of an archived board.
+- `/settings` — account and display preferences.
+- `/reset-password` — password reset flow.
 
-## React Compiler
+## Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+From this directory, install dependencies and start the development server:
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```sh
+npm ci
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+The Vite development server proxies `/api` requests to `http://backend:3000`, so the backend needs to be reachable by that hostname (as it is in the project’s Compose network). For a production bundle, use `npm run build` and serve the generated `dist/` directory with the project’s web server or run `npm run preview` for a local preview.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Scripts and checks
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite development server. |
+| `npm run build` | Type-check the app and create a production bundle in `dist/`. |
+| `npm run preview` | Serve the production bundle locally. |
+| `npm run lint` | Run ESLint over the client project. |
+| `npm test` | Run the Node test suite for Minesweeper board generation and game-state rules. |
 
-```
+The game tests cover deterministic daily seeds, mine placement and adjacency counts, safe opening reveals, wins and losses, click efficiency, saved game parsing, and chording. There are currently no automated browser, component, or API integration tests.
+
+## Known issues and limitations
+
+- No specific frontend bugs are currently documented.
+- API-backed features require the backend service. If running Vite outside the Compose network, the `/api` proxy target may need to be changed from `backend:3000` to the backend’s reachable host and port.
+- The automated suite covers game logic, but does not exercise the interface or backend integration.
