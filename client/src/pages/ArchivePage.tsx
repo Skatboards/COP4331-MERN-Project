@@ -14,10 +14,15 @@ function attemptDate(attempt: Attempt) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(date);
 }
 
-function attemptResult(attempt: Attempt) {
-  if (attempt.status === 'won') return `Won · ${attempt.clicks} clicks · ${attempt.efficiency}% efficiency`;
-  if (attempt.status === 'lost') return `Lost · ${attempt.clicks} clicks`;
-  return `In progress · ${attempt.clicks} clicks`;
+function attemptStatus(attempt: Attempt) {
+  if (attempt.status === 'won') return 'Won';
+  if (attempt.status === 'lost') return 'Lost';
+  return 'In progress';
+}
+
+function attemptDescription(attempt: Attempt) {
+  const efficiency = attempt.status === 'won' ? ` · ${attempt.efficiency}% efficiency` : '';
+  return `${attemptStatus(attempt)} · ${attempt.completionPercentage}% complete · ${attempt.clicks} clicks${efficiency}`;
 }
 
 export default function ArchivePage({ onSignIn }: ArchivePageProps) {
@@ -66,11 +71,18 @@ export default function ArchivePage({ onSignIn }: ArchivePageProps) {
                 {attempts.map((attempt, index) => {
                   const date = attemptDate(attempt);
                   return (
-                    <article className="archive-card" key={attempt.id} aria-label={`${date}: ${attemptResult(attempt)}`}>
+                    <article className="archive-card" key={attempt.id} aria-label={`${date}: ${attemptDescription(attempt)}`}>
                       <div className="archive-card-top"><span className="calendar-icon">▦</span><span className="archive-arrow">↗</span></div>
                       <span className="archive-day">{index === 0 ? 'Most recent' : attempt.status.replace('_', ' ')}</span>
                       <strong>{date}</strong>
-                      <span className={`archive-result ${attempt.status === 'lost' ? 'result-muted' : ''}`}>{attemptResult(attempt)}</span>
+                      <span className={`archive-result ${attempt.status === 'lost' ? 'result-muted' : ''}`}>
+                        {attemptStatus(attempt)} · <span className={attempt.completionPercentage === 100 ? 'completion-gold' : undefined}>
+                          {attempt.completionPercentage}% complete
+                        </span>
+                      </span>
+                      <span className="archive-clicks">
+                        {attempt.clicks} clicks{attempt.status === 'won' ? ` · ${attempt.efficiency}% efficiency` : ''}
+                      </span>
                       <div className="mini-board" aria-hidden="true">
                         {Array.from({ length: 25 }, (_, cell) => <i className={cell % (index + 3) === 0 ? 'mini-open' : ''} key={cell} />)}
                       </div>

@@ -16,6 +16,7 @@ export default function HomePage() {
         <div className="game-toolbar" aria-live="polite">
           <span>Mines left: <strong>{game.minesLeft}</strong></span>
           <span>Clicks: <strong>{game.clicks}</strong></span>
+          <span>Cleared: <strong className={game.completionPercentage === 100 ? 'completion-gold' : undefined}>{game.completionPercentage}%</strong></span>
           <button type="button" className={`text-button ${game.flagMode ? 'flag-mode-active' : ''}`} aria-pressed={game.flagMode} onClick={() => game.setFlagMode((value) => !value)}>Flag mode: {game.flagMode ? 'on' : 'off'}</button>
         </div>
         <div className="minesweeper-wrap">
