@@ -54,6 +54,34 @@
   --shadow-dialog: 0 24px 80px #0008;
   --overlay-bg: #050604b8;
 }
+.app-shell[data-high-contrast='true'] {
+  --line: #77796f;
+  --line-strong: #5f6257;
+  --muted: #56584f;
+  --brand-text: #3e5817;
+}
+.app-shell[data-theme='dark'][data-high-contrast='true'] {
+  --line: #72796a;
+  --line-strong: #929a88;
+  --muted: #d0d5c7;
+  --brand-text: #e3f8bd;
+}
+.app-shell[data-high-contrast='true'] .ms-board {
+  --ms-tile: #66717d;
+  --ms-tile-hi: #929eab;
+  --ms-tile-lo: #313a43;
+  --ms-open: #fff;
+  --ms-ink: #10151a;
+  --ms-focus: #e0007a;
+}
+.app-shell[data-theme='dark'][data-high-contrast='true'] .ms-board {
+  --ms-tile: #596451;
+  --ms-tile-hi: #8d9b80;
+  --ms-tile-lo: #20251c;
+  --ms-open: #f4f6ef;
+  --ms-ink: #fff;
+  --ms-focus: #ffe15a;
+}
 .topbar { height: 76px; padding: 0 max(5vw, calc((100vw - 1180px) / 2)); display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); background:var(--surface); }
 .wordmark { border:0; background:none; padding:0; cursor:pointer; font:800 25px/1 'Segoe UI',system-ui,sans-serif; letter-spacing:-1.5px; text-transform:lowercase; }
 .wordmark span { color:var(--brand); }
@@ -80,6 +108,12 @@ h1,h2 { font-family:'Segoe UI',system-ui,sans-serif; letter-spacing:-1.3px; }
 .page-heading h1 { margin-top:6px; font-size:32px; line-height:1.15; font-weight:700; }
 .board-card,.scores-card,.settings-card { border:1px solid var(--line); border-radius:16px; background:var(--surface); box-shadow:var(--shadow-card); }
 .board-card { padding:22px 24px; }
+.game-toolbar { display:flex; align-items:center; gap:16px; margin:14px 0 10px; color:var(--text-soft); font-size:12px; }
+.game-toolbar strong { color:var(--text); font-variant-numeric:tabular-nums; }
+.game-toolbar .text-button { margin-left:auto; }
+.flag-mode-active { padding:6px 9px; border-radius:7px !important; background:var(--brand-soft) !important; color:var(--brand-text) !important; }
+.minesweeper-wrap { overflow-x:auto; padding:8px 0; }
+.game-result { margin-top:12px; color:var(--brand-text); font-size:12px; font-weight:600; text-align:center; }
 .board-topline { display:flex; justify-content:space-between; align-items:center; }
 .board-topline h1 { margin-top:4px; font-size:18px; letter-spacing:-.5px; }
 .board-date { color:var(--muted); font-size:11px; }
