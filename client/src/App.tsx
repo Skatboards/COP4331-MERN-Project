@@ -39,6 +39,9 @@ export default function App() {
       return 'light';
     }
   });
+  const [highContrast, setHighContrast] = useState(() => {
+    try { return localStorage.getItem('sweeple-high-contrast') === 'true'; } catch { return false; }
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [signInOpen, setSignInOpen] = useState(urlAuthNotice);
@@ -81,7 +84,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell" data-theme={theme}>
+    <div className="app-shell" data-theme={theme} data-high-contrast={highContrast}>
       <SiteHeader
         username={user?.username ?? 'Sign in'}
         isAuthenticated={Boolean(user)}
@@ -99,7 +102,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/play" element={<PlayPage />} />
           <Route path="/archive" element={<ArchivePage onSignIn={openSignIn} />} />
-          <Route path="/settings" element={<SettingsPage onSignIn={openSignIn} />} />
+          <Route path="/settings" element={<SettingsPage onSignIn={openSignIn} highContrast={highContrast} onHighContrastChange={setHighContrast} />} />
           <Route path="/reset-password" element={<PasswordResetPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
