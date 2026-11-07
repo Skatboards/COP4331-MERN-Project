@@ -9,7 +9,8 @@ export default function HelpDialog({ onClose }: HelpDialogProps) {
       <div className="howto-list">
         <div><span>01</span><p><strong>Reveal a tile</strong>Each number tells you how many mines touch that tile.</p></div>
         <div><span>02</span><p><strong>Mark the mines</strong>Flag the tiles you think are hiding a mine.</p></div>
-        <div><span>03</span><p><strong>Clear the board</strong>Finish the daily puzzle in the shortest time possible.</p></div>
+        <div><span>03</span><p><strong>Chord solved tiles</strong>Click on a number to reveal all adjacent tiles that are not flagged.</p></div>
+        <div><span>04</span><p><strong>Clear the board</strong>Finish the daily puzzle in the shortest time possible.</p></div>
       </div>
       <a className="external-help-link" href="https://minesweeper.online/help/gameplay" target="_blank" rel="noreferrer">
         More detailed Minesweeper help <span aria-hidden="true">↗</span>

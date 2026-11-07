@@ -86,13 +86,11 @@ export default function ArchivePage({ onSignIn }: ArchivePageProps) {
               : <div className="archive-grid">
                 {attempts.map((attempt, index) => {
                   const date = attemptDate(attempt);
-                  return (
-                    <article className="archive-card" key={attempt.id} aria-label={`${date}: ${attemptDescription(attempt)}`}>
+                  const card = (
+                    <>
                       <div className="archive-card-top"><span className="calendar-icon">▦</span><span className="archive-arrow">↗</span></div>
                       <span className="archive-day">{index === 0 ? 'Most recent' : attempt.status.replace('_', ' ')}</span>
-                      {attempt.seed
-                        ? <Link className="archive-date-link" to={`/archive/${encodeURIComponent(attempt.seed)}`} aria-label={`View board for ${date}`}>{date}</Link>
-                        : <strong>{date}</strong>}
+                      <strong className="archive-date-link">{date}</strong>
                       <span className={`archive-result ${attempt.status === 'lost' ? 'result-muted' : ''}`}>
                         {attemptStatus(attempt)} · <span className={attempt.completionPercentage === 100 ? 'completion-gold' : undefined}>
                           {attempt.completionPercentage}% complete
@@ -104,8 +102,11 @@ export default function ArchivePage({ onSignIn }: ArchivePageProps) {
                       <div className="mini-board" aria-hidden="true">
                         {Array.from({ length: 25 }, (_, cell) => <i className={cell % (index + 3) === 0 ? 'mini-open' : ''} key={cell} />)}
                       </div>
-                    </article>
+                    </>
                   );
+                  return attempt.seed
+                    ? <Link className="archive-card" key={attempt.id} to={`/archive/${encodeURIComponent(attempt.seed)}`} aria-label={`${date}: ${attemptDescription(attempt)}. View board.`}>{card}</Link>
+                    : <article className="archive-card" key={attempt.id} aria-label={`${date}: ${attemptDescription(attempt)}`}>{card}</article>;
                 })}
               </div>}
     </main>

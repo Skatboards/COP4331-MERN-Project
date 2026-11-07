@@ -5,11 +5,11 @@ import { useAuth } from './auth/useAuth';
 import './App.css';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
 const ArchiveBoardPage = lazy(() => import('./pages/ArchiveBoardPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const PasswordResetPage = lazy(() => import('./pages/PasswordResetPage'));
-const PlayPage = lazy(() => import('./pages/PlayPage'));
 const HelpDialog = lazy(() => import('./components/HelpDialog'));
 const SignInDialog = lazy(() => import('./components/SignInDialog'));
 
@@ -100,8 +100,8 @@ export default function App() {
       {sessionError && <p className="session-banner" role="status">{sessionError}</p>}
       <Suspense fallback={<main className="home-content" aria-busy="true" />}>
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/play" element={<PlayPage />} />
+          <Route path="/" element={<LandingPage onSignIn={openSignIn} isAuthenticated={Boolean(user)} />} />
+          <Route path="/play" element={<HomePage />} />
           <Route path="/archive" element={<ArchivePage onSignIn={openSignIn} />} />
           <Route path="/archive/:seed" element={<ArchiveBoardPage />} />
           <Route path="/settings" element={<SettingsPage onSignIn={openSignIn} highContrast={highContrast} onHighContrastChange={setHighContrast} />} />
