@@ -35,12 +35,28 @@ router.get('/me', requireAuth, async (req, res) => {
 
 // GET /api/users/me/attempts - The logged-in user's games, newest first
 router.get('/me/attempts', requireAuth, async (req, res) => {
-  const attempts = await BoardAttempt.find({ userId: req.userId })
-    .sort({ createdAt: -1, _id: -1 })
-    .limit(readLimit(req.query.limit, 20, 100))
-    .populate('boardId', 'seed');
+  const filter = { userId: req.userId };
+  const [attempts, gamesPlayed, gamesWon, gamesFinished, user] = await Promise.all([
+    BoardAttempt.find(filter)
+      .sort({ createdAt: -1, _id: -1 })
+      .limit(readLimit(req.query.limit, 20, 100))
+      .populate('boardId', 'seed'),
+    BoardAttempt.countDocuments(filter),
+    BoardAttempt.countDocuments({ ...filter, status: 'won' }),
+    BoardAttempt.countDocuments({ ...filter, status: { $in: ['won', 'lost'] } }),
+    User.findById(req.userId).select('totalClicks efficiency')
+  ]);
+
+  if (!user) return res.status(404).json({ error: 'User not found' });
 
   res.json({
+    stats: {
+      gamesPlayed,
+      gamesWon,
+      winRate: gamesFinished ? Math.round((gamesWon / gamesFinished) * 100) : 0,
+      averageEfficiency: user.efficiency,
+      totalClicks: user.totalClicks
+    },
     attempts: attempts.map((attempt) => ({
       id: attempt._id,
       seed: attempt.boardId?.seed ?? null,

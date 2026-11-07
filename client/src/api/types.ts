@@ -42,6 +42,14 @@ export type Attempt = {
   completedAt: string | null;
 };
 
+export type ArchiveStats = {
+  gamesPlayed: number;
+  gamesWon: number;
+  winRate: number;
+  averageEfficiency: number;
+  totalClicks: number;
+};
+
 export type BoardAttempt = Pick<Attempt, 'clicks' | 'completed' | 'efficiency' | 'status' | 'completedAt'> & {
   username: string | null;
 };

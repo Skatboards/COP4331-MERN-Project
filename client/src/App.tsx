@@ -6,6 +6,7 @@ import './App.css';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
+const ArchiveBoardPage = lazy(() => import('./pages/ArchiveBoardPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const PasswordResetPage = lazy(() => import('./pages/PasswordResetPage'));
 const PlayPage = lazy(() => import('./pages/PlayPage'));
@@ -102,6 +103,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/play" element={<PlayPage />} />
           <Route path="/archive" element={<ArchivePage onSignIn={openSignIn} />} />
+          <Route path="/archive/:seed" element={<ArchiveBoardPage />} />
           <Route path="/settings" element={<SettingsPage onSignIn={openSignIn} highContrast={highContrast} onHighContrastChange={setHighContrast} />} />
           <Route path="/reset-password" element={<PasswordResetPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
