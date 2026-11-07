@@ -32,6 +32,7 @@ router.post('/:seed/progress', requireAuth, async (req, res) => {
   if (!game || game.seed !== req.params.seed || !['playing', 'won', 'lost'].includes(game.status) ||
       !Array.isArray(game.revealed) || !Array.isArray(game.flags) ||
       !Number.isInteger(game.clicks) || game.clicks < 0 ||
+      typeof req.body.completionPercentage !== 'number' || req.body.completionPercentage < 0 || req.body.completionPercentage > 100 ||
       !(game.explodedAt === null || Number.isInteger(game.explodedAt))) {
     return res.status(400).json({ error: 'Invalid game state' });
   }
@@ -48,7 +49,13 @@ router.post('/:seed/progress', requireAuth, async (req, res) => {
   }
   await BoardAttempt.findOneAndUpdate(
     { userId: req.userId, boardId: board._id },
-    { $set: { gameState: game, clicks: game.clicks, status: 'in_progress', completed: false } },
+    { $set: {
+      gameState: game,
+      clicks: game.clicks,
+      completionPercentage: req.body.completionPercentage,
+      status: 'in_progress',
+      completed: false
+    } },
     { upsert: true, returnDocument: 'after' }
   );
   res.json({ saved: true });
@@ -126,6 +133,7 @@ router.get('/:seed/attempts', async (req, res) => {
 router.post('/:seed/attempts', requireAuth, async (req, res) => {
   const { clicks, status } = req.body ?? {};
   let { efficiency } = req.body ?? {};
+  let { completionPercentage } = req.body ?? {};
 
   if (!Number.isInteger(clicks) || clicks < 0) {
     return res.status(400).json({ error: 'clicks must be a whole number of 0 or more' });
@@ -141,6 +149,11 @@ router.post('/:seed/attempts', requireAuth, async (req, res) => {
     // A lost game scores no efficiency
     efficiency = 0;
   }
+  if (completionPercentage === undefined) completionPercentage = status === 'won' ? 100 : 0;
+  if (typeof completionPercentage !== 'number' || completionPercentage < 0 || completionPercentage > 100) {
+    return res.status(400).json({ error: 'completionPercentage must be a number from 0 to 100' });
+  }
+  if (status === 'won') completionPercentage = 100;
 
   if (!(await User.exists({ _id: req.userId }))) {
     return res.status(404).json({ error: 'User not found' });
@@ -164,6 +177,7 @@ router.post('/:seed/attempts', requireAuth, async (req, res) => {
       clicks,
       completed: won,
       efficiency,
+      completionPercentage,
       status,
       completedAt: new Date(),
       gameState: null

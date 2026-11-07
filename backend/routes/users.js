@@ -47,6 +47,7 @@ router.get('/me/attempts', requireAuth, async (req, res) => {
       clicks: attempt.clicks,
       completed: attempt.completed,
       efficiency: attempt.efficiency,
+      completionPercentage: attempt.status === 'won' ? 100 : attempt.completionPercentage,
       status: attempt.status,
       completedAt: attempt.completedAt
     }))

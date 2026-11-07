@@ -30,6 +30,14 @@ function persist(game: GameState) {
   }
 }
 
+function clearPercentage(game: GameState, safeCellCount: number) {
+  return safeCellCount === 0 ? 100 : (new Set(game.revealed).size / safeCellCount) * 100;
+}
+
+function reachedMilestone(game: GameState, safeCellCount: number) {
+  return Math.floor(clearPercentage(game, safeCellCount) / 10) * 10;
+}
+
 function playRevealSound() {
   try {
     if (localStorage.getItem('sweeple-sound') === 'false') return;
@@ -61,6 +69,7 @@ export function useMinesweeper(seed: string) {
   );
   const [flagMode, setFlagMode] = useState(false);
   const saveQueue = useRef(Promise.resolve());
+  const savedMilestone = useRef(0);
   const activeIdentity = token && user ? `${user.id}:${seed}` : `guest:${seed}`;
 
   useEffect(() => {
@@ -70,6 +79,7 @@ export function useMinesweeper(seed: string) {
       setGame(loadGame(seed, board.rows * board.cols, () => newGame(board, seed)));
       return () => { active = false; };
     }
+    savedMilestone.current = 0;
     setGame(newGame(board, seed));
     getGameProgress(token, seed).then(({ game: saved, played }) => {
       if (!active) return;
@@ -90,8 +100,19 @@ export function useMinesweeper(seed: string) {
       const serverGame = parseSavedGame(saved ? JSON.stringify(saved) : null, seed, board.rows * board.cols);
       const restored = serverGame ?? loadGame(seed, board.rows * board.cols, () => newGame(board, seed));
       setGame(restored);
-      if (!serverGame && restored.status === 'playing') {
-        saveQueue.current = saveQueue.current.then(() => saveGameProgress(token, seed, restored)).then(() => undefined).catch(() => undefined);
+      const serverMilestone = serverGame
+        ? reachedMilestone(serverGame, board.rows * board.cols - board.mineCount)
+        : 0;
+      savedMilestone.current = serverMilestone;
+      const restoredMilestone = reachedMilestone(restored, board.rows * board.cols - board.mineCount);
+      if (!serverGame && restored.status === 'playing' && restoredMilestone > savedMilestone.current) {
+        savedMilestone.current = restoredMilestone;
+        saveQueue.current = saveQueue.current.then(() => saveGameProgress(
+          token,
+          seed,
+          restored,
+          Math.floor(clearPercentage(restored, board.rows * board.cols - board.mineCount)),
+        )).then(() => undefined).catch(() => undefined);
       }
     }).catch(() => {
       if (active) setGame(newGame(board, seed));
@@ -116,16 +137,26 @@ export function useMinesweeper(seed: string) {
     if (authLoading) return;
     if (token && user) {
       if (next.status === 'playing') {
-        saveQueue.current = saveQueue.current.then(() => saveGameProgress(token, seed, next)).then(() => undefined).catch(() => undefined);
+        const milestone = reachedMilestone(next, board.rows * board.cols - board.mineCount);
+        if (milestone > savedMilestone.current) {
+          savedMilestone.current = milestone;
+          saveQueue.current = saveQueue.current.then(() => saveGameProgress(
+            token,
+            seed,
+            next,
+            Math.floor(clearPercentage(next, board.rows * board.cols - board.mineCount)),
+          )).then(() => undefined).catch(() => undefined);
+        }
       } else {
         saveQueue.current = saveQueue.current.then(() => submitAttempt(token, seed, {
           clicks: next.clicks,
           status: next.status,
           efficiency: next.status === 'won' ? efficiency(par, next.clicks) : 0,
+          completionPercentage: Math.floor(clearPercentage(next, board.rows * board.cols - board.mineCount)),
         })).then(() => undefined).catch(() => undefined);
       }
     } else persist(next);
-  }, [authLoading, token, user, seed, par]);
+  }, [authLoading, token, user, seed, par, board]);
 
   const reveal = useCallback(
     (index: number) => {
@@ -157,6 +188,7 @@ export function useMinesweeper(seed: string) {
   return {
     board,
     game,
+    completionPercentage: Math.floor(clearPercentage(game, board.rows * board.cols - board.mineCount)),
     result,
     clicks: game.clicks,
     minesLeft: board.mineCount - game.flags.length,

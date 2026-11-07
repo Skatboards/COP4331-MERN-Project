@@ -37,6 +37,7 @@ export type Attempt = {
   clicks: number;
   completed: boolean;
   efficiency: number;
+  completionPercentage: number;
   status: 'in_progress' | 'won' | 'lost';
   completedAt: string | null;
 };
