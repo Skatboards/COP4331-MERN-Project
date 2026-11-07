@@ -1,5 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom';
 import SiteHeader from './components/SiteHeader';
 import { useAuth } from './auth/useAuth';
 import './App.css';
@@ -29,6 +29,7 @@ function getAuthNotice(searchParams: URLSearchParams) {
 
 export default function App() {
   const { user, login, register, resendVerification, requestPasswordReset, logout, sessionError } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlAuthNotice = hasAuthNotice(searchParams);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -62,8 +63,13 @@ export default function App() {
 
   function accountAction() {
     setMenuOpen(false);
-    if (user) logout();
-    setSignInOpen(true);
+    if (user) {
+      logout();
+      setSignInOpen(false);
+      navigate('/', { replace: true });
+    } else {
+      setSignInOpen(true);
+    }
   }
 
   function closeSignIn() {
