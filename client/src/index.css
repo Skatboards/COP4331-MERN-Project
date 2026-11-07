@@ -23,4 +23,12 @@ button, input { font: inherit; }
 button { color: inherit; }
 a { color: inherit; }
 button:focus-visible, input:focus-visible { outline: 3px solid #9ac844; outline-offset: 3px; }
-::selection { background: #ddf4a8; }
+::selection {
+  color: #252522;
+  background: #ddf4a8;
+}
+
+.app-shell[data-theme='dark'] ::selection {
+  color: #171a14;
+  background: #c5e77b;
+}
