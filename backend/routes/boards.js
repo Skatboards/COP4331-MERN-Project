@@ -14,9 +14,16 @@ const BOARD_FIELDS =
 // GET /api/boards/:seed/progress - Resume this user's game
 router.get('/:seed/progress', requireAuth, async (req, res) => {
   const board = await Board.findOne({ seed: req.params.seed });
-  if (!board) return res.json({ game: null });
-  const attempt = await BoardAttempt.findOne({ userId: req.userId, boardId: board._id, status: 'in_progress' });
-  res.json({ game: attempt?.gameState ?? null });
+  if (!board) return res.json({ game: null, played: null });
+  const attempt = await BoardAttempt.findOne({ userId: req.userId, boardId: board._id });
+  if (!attempt) return res.json({ game: null, played: null });
+  if (attempt.status !== 'in_progress') {
+    return res.json({
+      game: null,
+      played: { status: attempt.status, clicks: attempt.clicks }
+    });
+  }
+  res.json({ game: attempt.gameState ?? null, played: null });
 });
 
 // PUT is represented by POST in apiRequest; save the user's current game.

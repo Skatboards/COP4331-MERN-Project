@@ -28,7 +28,7 @@ export function submitAttempt(
 }
 
 export function getGameProgress(token: string, seed: string) {
-  return apiRequest<{ game: GameState | null }>(
+  return apiRequest<{ game: GameState | null; played: { status: 'won' | 'lost'; clicks: number } | null }>(
     `/boards/${encodeURIComponent(seed)}/progress`, { token },
   );
 }

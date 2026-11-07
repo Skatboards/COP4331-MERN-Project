@@ -57,7 +57,7 @@ export function useMinesweeper(seed: string) {
   const board = useMemo(() => generateBoard(seed), [seed]);
   const par = useMemo(() => parClicks(board), [board]);
   const [game, setGame] = useState<GameState>(() =>
-    token && user ? newGame(board, seed) : loadGame(seed, board.rows * board.cols, () => newGame(board, seed))
+    authLoading || (token && user) ? newGame(board, seed) : loadGame(seed, board.rows * board.cols, () => newGame(board, seed))
   );
   const [flagMode, setFlagMode] = useState(false);
   const saveQueue = useRef(Promise.resolve());
@@ -71,9 +71,28 @@ export function useMinesweeper(seed: string) {
       return () => { active = false; };
     }
     setGame(newGame(board, seed));
-    getGameProgress(token, seed).then(({ game: saved }) => {
+    getGameProgress(token, seed).then(({ game: saved, played }) => {
       if (!active) return;
-      setGame(parseSavedGame(saved ? JSON.stringify(saved) : null, seed, board.rows * board.cols) ?? newGame(board, seed));
+      if (played) {
+        setGame({
+          seed,
+          revealed: Array.from(
+            { length: board.rows * board.cols },
+            (_, index) => index,
+          ).filter((index) => !board.isMine[index]),
+          flags: [],
+          clicks: played.clicks,
+          status: played.status,
+          explodedAt: null,
+        });
+        return;
+      }
+      const serverGame = parseSavedGame(saved ? JSON.stringify(saved) : null, seed, board.rows * board.cols);
+      const restored = serverGame ?? loadGame(seed, board.rows * board.cols, () => newGame(board, seed));
+      setGame(restored);
+      if (!serverGame && restored.status === 'playing') {
+        saveQueue.current = saveQueue.current.then(() => saveGameProgress(token, seed, restored)).then(() => undefined).catch(() => undefined);
+      }
     }).catch(() => {
       if (active) setGame(newGame(board, seed));
     });
