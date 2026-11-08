@@ -35,9 +35,9 @@ export default function LandingPage({ onSignIn, isAuthenticated }: LandingPagePr
           <h2 id="rules-title">How to play</h2>
         </div>
         <div className="rules-grid">
-          {rules.map((rule) => (
-            <article className="rule-card" key={rule.number}>
-              <span className="rule-number">{rule.number}</span>
+          {rules.map((rule, index) => (
+            <article className="rule-card" key={rule.title}>
+              <span className="rule-number">{String(index + 1).padStart(2, '0')}</span>
               <h3>{rule.title}</h3>
               <p>{rule.copy}</p>
             </article>

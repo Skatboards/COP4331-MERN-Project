@@ -76,11 +76,12 @@ export function useMinesweeper(seed: string) {
     if (authLoading) return;
     let active = true;
     if (!token || !user) {
-      setGame(loadGame(seed, board.rows * board.cols, () => newGame(board, seed)));
+      Promise.resolve().then(() => {
+        if (active) setGame(loadGame(seed, board.rows * board.cols, () => newGame(board, seed)));
+      });
       return () => { active = false; };
     }
     savedMilestone.current = 0;
-    setGame(newGame(board, seed));
     getGameProgress(token, seed).then(({ game: saved, played }) => {
       if (!active) return;
       if (played) {
@@ -148,10 +149,11 @@ export function useMinesweeper(seed: string) {
           )).then(() => undefined).catch(() => undefined);
         }
       } else {
+        const status = next.status === 'won' ? 'won' : 'lost';
         saveQueue.current = saveQueue.current.then(() => submitAttempt(token, seed, {
           clicks: next.clicks,
-          status: next.status,
-          efficiency: next.status === 'won' ? efficiency(par, next.clicks) : 0,
+          status,
+          efficiency: status === 'won' ? efficiency(par, next.clicks) : 0,
           completionPercentage: Math.floor(clearPercentage(next, board.rows * board.cols - board.mineCount)),
         })).then(() => undefined).catch(() => undefined);
       }
