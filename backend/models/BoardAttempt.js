@@ -33,10 +33,22 @@ const boardAttemptSchema = new mongoose.Schema(
       max: 100
     },
 
+    completionPercentage: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100
+    },
+
     status: {
       type: String,
       enum: ['in_progress', 'won', 'lost'],
       default: 'in_progress'
+    },
+
+    gameState: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
     },
 
     completedAt: {

@@ -1,14 +1,15 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom';
 import SiteHeader from './components/SiteHeader';
 import { useAuth } from './auth/useAuth';
 import './App.css';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
+const ArchiveBoardPage = lazy(() => import('./pages/ArchiveBoardPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const PasswordResetPage = lazy(() => import('./pages/PasswordResetPage'));
-const PlayPage = lazy(() => import('./pages/PlayPage'));
 const HelpDialog = lazy(() => import('./components/HelpDialog'));
 const SignInDialog = lazy(() => import('./components/SignInDialog'));
 
@@ -39,6 +40,7 @@ function getAuthNotice(searchParams: URLSearchParams) {
 
 export default function App() {
   const { user, login, register, resendVerification, requestPasswordReset, logout, sessionError } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const urlAuthNotice = hasAuthNotice(searchParams);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -47,6 +49,9 @@ export default function App() {
     } catch {
       return 'light';
     }
+  });
+  const [highContrast, setHighContrast] = useState(() => {
+    try { return localStorage.getItem('sweeple-high-contrast') === 'true'; } catch { return false; }
   });
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -72,8 +77,13 @@ export default function App() {
 
   function accountAction() {
     setMenuOpen(false);
-    if (user) logout();
-    setSignInOpen(true);
+    if (user) {
+      logout();
+      setSignInOpen(false);
+      navigate('/', { replace: true });
+    } else {
+      setSignInOpen(true);
+    }
   }
 
   function closeSignIn() {
@@ -86,7 +96,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell" data-theme={theme}>
+    <div className="app-shell" data-theme={theme} data-high-contrast={highContrast}>
       <SiteHeader
         username={user?.username ?? 'Sign in'}
         isAuthenticated={Boolean(user)}
@@ -101,10 +111,11 @@ export default function App() {
       {sessionError && <p className="session-banner" role="status">{sessionError}</p>}
       <Suspense fallback={<main className="home-content" aria-busy="true" />}>
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/play" element={<PlayPage />} />
+          <Route path="/" element={<LandingPage onSignIn={openSignIn} isAuthenticated={Boolean(user)} />} />
+          <Route path="/play" element={<HomePage />} />
           <Route path="/archive" element={<ArchivePage onSignIn={openSignIn} />} />
-          <Route path="/settings" element={<SettingsPage onSignIn={openSignIn} />} />
+          <Route path="/archive/:seed" element={<ArchiveBoardPage />} />
+          <Route path="/settings" element={<SettingsPage onSignIn={openSignIn} highContrast={highContrast} onHighContrastChange={setHighContrast} />} />
           <Route path="/reset-password" element={<PasswordResetPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

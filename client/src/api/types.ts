@@ -37,8 +37,17 @@ export type Attempt = {
   clicks: number;
   completed: boolean;
   efficiency: number;
+  completionPercentage: number;
   status: 'in_progress' | 'won' | 'lost';
   completedAt: string | null;
+};
+
+export type ArchiveStats = {
+  gamesPlayed: number;
+  gamesWon: number;
+  winRate: number;
+  averageEfficiency: number;
+  totalClicks: number;
 };
 
 export type BoardAttempt = Pick<Attempt, 'clicks' | 'completed' | 'efficiency' | 'status' | 'completedAt'> & {

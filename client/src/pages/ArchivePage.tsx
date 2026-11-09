@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getMyAttempts } from '../api/users';
 import { ApiError } from '../api/client';
-import type { Attempt } from '../api/types';
+import type { ArchiveStats, Attempt } from '../api/types';
 import { useAuth } from '../auth/useAuth';
 
 type ArchivePageProps = { onSignIn: () => void };
@@ -14,15 +15,21 @@ function attemptDate(attempt: Attempt) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(date);
 }
 
-function attemptResult(attempt: Attempt) {
-  if (attempt.status === 'won') return `Won · ${attempt.clicks} clicks · ${attempt.efficiency}% efficiency`;
-  if (attempt.status === 'lost') return `Lost · ${attempt.clicks} clicks`;
-  return `In progress · ${attempt.clicks} clicks`;
+function attemptStatus(attempt: Attempt) {
+  if (attempt.status === 'won') return 'Won';
+  if (attempt.status === 'lost') return 'Lost';
+  return 'In progress';
+}
+
+function attemptDescription(attempt: Attempt) {
+  const efficiency = attempt.status === 'won' ? ` · ${attempt.efficiency}% efficiency` : '';
+  return `${attemptStatus(attempt)} · ${attempt.completionPercentage}% complete · ${attempt.clicks} clicks${efficiency}`;
 }
 
 export default function ArchivePage({ onSignIn }: ArchivePageProps) {
   const { token, user, logout } = useAuth();
   const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [stats, setStats] = useState<ArchiveStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [reload, setReload] = useState(0);
@@ -38,7 +45,11 @@ export default function ArchivePage({ onSignIn }: ArchivePageProps) {
 
     let active = true;
     getMyAttempts(token)
-      .then(({ attempts: userAttempts }) => { if (active) setAttempts(userAttempts); })
+      .then(({ attempts: userAttempts, stats: userStats }) => {
+        if (!active) return;
+        setAttempts(userAttempts);
+        setStats(userStats);
+      })
       .catch((requestError: unknown) => {
         if (!active) return;
         if (requestError instanceof ApiError && requestError.status === 401) {
@@ -56,8 +67,18 @@ export default function ArchivePage({ onSignIn }: ArchivePageProps) {
     <main className="subpage">
       <div className="page-heading">
         <div><span className="eyebrow">PAST PUZZLES</span><h1>Board archive</h1></div>
-        {user && <span className="archive-count">{attempts.length} GAMES</span>}
+        {user && <span className="archive-count">{stats?.gamesPlayed ?? attempts.length} GAMES</span>}
       </div>
+      {user && stats && <section className="archive-stats" aria-label="Player statistics">
+        <h2>Player stats</h2>
+        <div className="archive-stats-grid">
+          <div><span>Games played</span><strong>{stats.gamesPlayed}</strong></div>
+          <div><span>Games won</span><strong>{stats.gamesWon}</strong></div>
+          <div><span>Win rate</span><strong>{stats.winRate}%</strong></div>
+          <div><span>Average efficiency</span><strong>{stats.averageEfficiency.toFixed(1)}%</strong></div>
+          <div><span>Total clicks</span><strong>{stats.totalClicks}</strong></div>
+        </div>
+      </section>}
       {!user ? <section className="empty-state"><p>Sign in to see your completed boards.</p><button className="primary-button" onClick={onSignIn}>Sign in</button></section>
         : loading ? <p className="api-state" role="status">Loading your games…</p>
           : error ? <div className="empty-state api-error-state" role="alert"><p>{error}</p><button className="text-button" onClick={retry}>Try again</button></div>
@@ -65,17 +86,27 @@ export default function ArchivePage({ onSignIn }: ArchivePageProps) {
               : <div className="archive-grid">
                 {attempts.map((attempt, index) => {
                   const date = attemptDate(attempt);
-                  return (
-                    <article className="archive-card" key={attempt.id} aria-label={`${date}: ${attemptResult(attempt)}`}>
+                  const card = (
+                    <>
                       <div className="archive-card-top"><span className="calendar-icon">▦</span><span className="archive-arrow">↗</span></div>
                       <span className="archive-day">{index === 0 ? 'Most recent' : attempt.status.replace('_', ' ')}</span>
-                      <strong>{date}</strong>
-                      <span className={`archive-result ${attempt.status === 'lost' ? 'result-muted' : ''}`}>{attemptResult(attempt)}</span>
+                      <strong className="archive-date-link">{date}</strong>
+                      <span className={`archive-result ${attempt.status === 'lost' ? 'result-muted' : ''}`}>
+                        {attemptStatus(attempt)} · <span className={attempt.completionPercentage === 100 ? 'completion-gold' : undefined}>
+                          {attempt.completionPercentage}% complete
+                        </span>
+                      </span>
+                      <span className="archive-clicks">
+                        {attempt.clicks} clicks{attempt.status === 'won' ? ` · ${attempt.efficiency}% efficiency` : ''}
+                      </span>
                       <div className="mini-board" aria-hidden="true">
                         {Array.from({ length: 25 }, (_, cell) => <i className={cell % (index + 3) === 0 ? 'mini-open' : ''} key={cell} />)}
                       </div>
-                    </article>
+                    </>
                   );
+                  return attempt.seed
+                    ? <Link className="archive-card" key={attempt.id} to={`/archive/${encodeURIComponent(attempt.seed)}`} aria-label={`${date}: ${attemptDescription(attempt)}. View board.`}>{card}</Link>
+                    : <article className="archive-card" key={attempt.id} aria-label={`${date}: ${attemptDescription(attempt)}`}>{card}</article>;
                 })}
               </div>}
     </main>

@@ -1,4 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { getGameProgress, saveGameProgress, submitAttempt } from '../api/boards';
+import { useAuth } from '../auth/useAuth';
 import { efficiency, generateBoard, parClicks } from '../game/minesweeper.ts';
 import {
   chordCell, newGame, parseSavedGame, revealCell, toggleFlag, type GameState,
@@ -28,13 +30,96 @@ function persist(game: GameState) {
   }
 }
 
+function clearPercentage(game: GameState, safeCellCount: number) {
+  return safeCellCount === 0 ? 100 : (new Set(game.revealed).size / safeCellCount) * 100;
+}
+
+function reachedMilestone(game: GameState, safeCellCount: number) {
+  return Math.floor(clearPercentage(game, safeCellCount) / 10) * 10;
+}
+
+function playRevealSound() {
+  try {
+    if (localStorage.getItem('sweeple-sound') === 'false') return;
+    const AudioContextClass = window.AudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = 520;
+    gain.gain.setValueAtTime(0.035, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.07);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.07);
+    oscillator.onended = () => { void context.close(); };
+  } catch {
+    // Sound is optional; gameplay remains available when audio is blocked.
+  }
+}
+
 export function useMinesweeper(seed: string) {
+  const { token, user, loading: authLoading } = useAuth();
   const board = useMemo(() => generateBoard(seed), [seed]);
   const par = useMemo(() => parClicks(board), [board]);
   const [game, setGame] = useState<GameState>(() =>
-    loadGame(seed, board.rows * board.cols, () => newGame(board, seed))
+    authLoading || (token && user) ? newGame(board, seed) : loadGame(seed, board.rows * board.cols, () => newGame(board, seed))
   );
   const [flagMode, setFlagMode] = useState(false);
+  const saveQueue = useRef(Promise.resolve());
+  const savedMilestone = useRef(0);
+  const activeIdentity = token && user ? `${user.id}:${seed}` : `guest:${seed}`;
+
+  useEffect(() => {
+    if (authLoading) return;
+    let active = true;
+    if (!token || !user) {
+      Promise.resolve().then(() => {
+        if (active) setGame(loadGame(seed, board.rows * board.cols, () => newGame(board, seed)));
+      });
+      return () => { active = false; };
+    }
+    savedMilestone.current = 0;
+    getGameProgress(token, seed).then(({ game: saved, played }) => {
+      if (!active) return;
+      if (played) {
+        setGame({
+          seed,
+          revealed: Array.from(
+            { length: board.rows * board.cols },
+            (_, index) => index,
+          ).filter((index) => !board.isMine[index]),
+          flags: [],
+          clicks: played.clicks,
+          status: played.status,
+          explodedAt: null,
+        });
+        return;
+      }
+      const serverGame = parseSavedGame(saved ? JSON.stringify(saved) : null, seed, board.rows * board.cols);
+      const restored = serverGame ?? loadGame(seed, board.rows * board.cols, () => newGame(board, seed));
+      setGame(restored);
+      const serverMilestone = serverGame
+        ? reachedMilestone(serverGame, board.rows * board.cols - board.mineCount)
+        : 0;
+      savedMilestone.current = serverMilestone;
+      const restoredMilestone = reachedMilestone(restored, board.rows * board.cols - board.mineCount);
+      if (!serverGame && restored.status === 'playing' && restoredMilestone > savedMilestone.current) {
+        savedMilestone.current = restoredMilestone;
+        saveQueue.current = saveQueue.current.then(() => saveGameProgress(
+          token,
+          seed,
+          restored,
+          Math.floor(clearPercentage(restored, board.rows * board.cols - board.mineCount)),
+        )).then(() => undefined).catch(() => undefined);
+      }
+    }).catch(() => {
+      if (active) setGame(newGame(board, seed));
+    });
+    return () => { active = false; };
+  }, [activeIdentity, authLoading, token, user, seed, board]);
 
   const result = useMemo<GameResult | null>(
     () =>
@@ -50,13 +135,38 @@ export function useMinesweeper(seed: string) {
 
   const update = useCallback((next: GameState) => {
     setGame(next);
-    persist(next);
-  }, []);
+    if (authLoading) return;
+    if (token && user) {
+      if (next.status === 'playing') {
+        const milestone = reachedMilestone(next, board.rows * board.cols - board.mineCount);
+        if (milestone > savedMilestone.current) {
+          savedMilestone.current = milestone;
+          saveQueue.current = saveQueue.current.then(() => saveGameProgress(
+            token,
+            seed,
+            next,
+            Math.floor(clearPercentage(next, board.rows * board.cols - board.mineCount)),
+          )).then(() => undefined).catch(() => undefined);
+        }
+      } else {
+        const status = next.status === 'won' ? 'won' : 'lost';
+        saveQueue.current = saveQueue.current.then(() => submitAttempt(token, seed, {
+          clicks: next.clicks,
+          status,
+          efficiency: status === 'won' ? efficiency(par, next.clicks) : 0,
+          completionPercentage: Math.floor(clearPercentage(next, board.rows * board.cols - board.mineCount)),
+        })).then(() => undefined).catch(() => undefined);
+      }
+    } else persist(next);
+  }, [authLoading, token, user, seed, par, board]);
 
   const reveal = useCallback(
     (index: number) => {
       const next = revealCell(board, game, index);
-      if (next !== game) update(next);
+      if (next !== game) {
+        update(next);
+        if (next.clicks > game.clicks && next.status !== 'lost') playRevealSound();
+      }
     },
     [board, game, update]
   );
@@ -80,6 +190,7 @@ export function useMinesweeper(seed: string) {
   return {
     board,
     game,
+    completionPercentage: Math.floor(clearPercentage(game, board.rows * board.cols - board.mineCount)),
     result,
     clicks: game.clicks,
     minesLeft: board.mineCount - game.flags.length,

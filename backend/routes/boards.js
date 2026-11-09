@@ -11,6 +11,56 @@ const SEED_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const BOARD_FIELDS =
   'seed totalAttempts totalCompletions globalCompletionPercentage averageClicks averageEfficiency createdAt';
 
+// GET /api/boards/:seed/progress - Resume this user's game
+router.get('/:seed/progress', requireAuth, async (req, res) => {
+  const board = await Board.findOne({ seed: req.params.seed });
+  if (!board) return res.json({ game: null, played: null });
+  const attempt = await BoardAttempt.findOne({ userId: req.userId, boardId: board._id });
+  if (!attempt) return res.json({ game: null, played: null });
+  if (attempt.status !== 'in_progress') {
+    return res.json({
+      game: null,
+      played: { status: attempt.status, clicks: attempt.clicks }
+    });
+  }
+  res.json({ game: attempt.gameState ?? null, played: null });
+});
+
+// PUT is represented by POST in apiRequest; save the user's current game.
+router.post('/:seed/progress', requireAuth, async (req, res) => {
+  const game = req.body?.game;
+  if (!game || game.seed !== req.params.seed || !['playing', 'won', 'lost'].includes(game.status) ||
+      !Array.isArray(game.revealed) || !Array.isArray(game.flags) ||
+      !Number.isInteger(game.clicks) || game.clicks < 0 ||
+      typeof req.body.completionPercentage !== 'number' || req.body.completionPercentage < 0 || req.body.completionPercentage > 100 ||
+      !(game.explodedAt === null || Number.isInteger(game.explodedAt))) {
+    return res.status(400).json({ error: 'Invalid game state' });
+  }
+  const board = await Board.findOneAndUpdate(
+    { seed: req.params.seed }, { $setOnInsert: { seed: req.params.seed } },
+    { upsert: true, returnDocument: 'after' }
+  );
+  if (game.status !== 'playing') {
+    return res.status(400).json({ error: 'Finished games must be submitted as attempts' });
+  }
+  const existing = await BoardAttempt.findOne({ userId: req.userId, boardId: board._id });
+  if (existing && existing.status !== 'in_progress') {
+    return res.status(409).json({ error: 'You have already played this board' });
+  }
+  await BoardAttempt.findOneAndUpdate(
+    { userId: req.userId, boardId: board._id },
+    { $set: {
+      gameState: game,
+      clicks: game.clicks,
+      completionPercentage: req.body.completionPercentage,
+      status: 'in_progress',
+      completed: false
+    } },
+    { upsert: true, returnDocument: 'after' }
+  );
+  res.json({ saved: true });
+});
+
 // Rejects requests whose :seed is not a valid board seed
 router.param('seed', (req, res, next, seed) => {
   if (!SEED_PATTERN.test(seed)) {
@@ -83,6 +133,7 @@ router.get('/:seed/attempts', async (req, res) => {
 router.post('/:seed/attempts', requireAuth, async (req, res) => {
   const { clicks, status } = req.body ?? {};
   let { efficiency } = req.body ?? {};
+  let { completionPercentage } = req.body ?? {};
 
   if (!Number.isInteger(clicks) || clicks < 0) {
     return res.status(400).json({ error: 'clicks must be a whole number of 0 or more' });
@@ -98,6 +149,11 @@ router.post('/:seed/attempts', requireAuth, async (req, res) => {
     // A lost game scores no efficiency
     efficiency = 0;
   }
+  if (completionPercentage === undefined) completionPercentage = status === 'won' ? 100 : 0;
+  if (typeof completionPercentage !== 'number' || completionPercentage < 0 || completionPercentage > 100) {
+    return res.status(400).json({ error: 'completionPercentage must be a number from 0 to 100' });
+  }
+  if (status === 'won') completionPercentage = 100;
 
   if (!(await User.exists({ _id: req.userId }))) {
     return res.status(404).json({ error: 'User not found' });
@@ -113,15 +169,21 @@ router.post('/:seed/attempts', requireAuth, async (req, res) => {
   const won = status === 'won';
   let attempt;
   try {
-    attempt = await BoardAttempt.create({
+    attempt = await BoardAttempt.findOneAndUpdate(
+      { userId: req.userId, boardId: board._id, status: 'in_progress' },
+      { $set: {
       userId: req.userId,
       boardId: board._id,
       clicks,
       completed: won,
       efficiency,
+      completionPercentage,
       status,
-      completedAt: new Date()
-    });
+      completedAt: new Date(),
+      gameState: null
+      } },
+      { upsert: true, returnDocument: 'after' }
+    );
   } catch (err) {
     if (err.code === 11000) {
       return res.status(409).json({ error: 'You have already played this board' });
