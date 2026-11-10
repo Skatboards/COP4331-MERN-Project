@@ -81,15 +81,24 @@ flowchart TB
         oauthRoute["oauth.js<br/>/api/auth/:provider"]
         users["users.js<br/>/api/users/*"]
         boards["boards.js<br/>/api/boards/*"]
+        admin["admin.js<br/>/api/admin/*"]
     end
 
-    mw["middleware/auth.js<br/>requireAuth (Bearer JWT)"]
+    subgraph middleware["middleware/"]
+        mw["auth.js<br/>requireAuth (Bearer JWT)"]
+        roleMw["requireRole.js<br/>loads user, checks role"]
+    end
 
     subgraph lib["lib/"]
         tokens["tokens.js<br/>JWT sign/verify,<br/>one-time tokens + SHA-256"]
         email["email.js<br/>nodemailer or log"]
         oauthLib["oauth.js<br/>GitHub, Google providers"]
+        roles["roles.js<br/>ranks, canManage,<br/>assignableRoles"]
+        stats["stats.js<br/>recompute board<br/>and user stats"]
+        bootstrap["bootstrapAdmins.js<br/>SITE_ADMIN_EMAILS"]
     end
+
+    setRole["scripts/set-role.js<br/>npm run set-role"]
 
     subgraph models["models/"]
         User
@@ -97,7 +106,16 @@ flowchart TB
         BoardAttempt
     end
 
-    server --> auth & oauthRoute & users & boards
+    server --> auth & oauthRoute & users & boards & admin
+    server -->|"on start"| bootstrap
+    admin --> mw & roleMw
+    admin --> roles & stats & User & BoardAttempt
+    admin -->|"shared validation,<br/>issuePasswordReset"| auth
+    roleMw --> roles & User
+    stats --> Board & User & BoardAttempt
+    auth & oauthRoute -->|"roleForEmail"| bootstrap
+    bootstrap --> User
+    setRole --> roles & User
     oauthRoute --> oauthLib & tokens & User
     users --> mw
     boards --> mw

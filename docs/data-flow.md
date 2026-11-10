@@ -9,12 +9,14 @@ The endpoints are described in full in [backend/openapi.yaml](../backend/openapi
 ```mermaid
 flowchart LR
     user(["Player"])
+    staff(["Admin / site admin"])
     ui["React client"]
     api["Express API"]
     db[("MongoDB<br/>GameDB")]
     mail["Email"]
 
     user -->|"sign up, log in,<br/>play, browse"| ui
+    staff -->|"manage accounts<br/>(/admin)"| ui
     ui -->|"JSON requests<br/>+ Bearer token"| api
     api -->|"JSON responses"| ui
     api <-->|"users, boards,<br/>boardAttempts"| db
@@ -181,3 +183,60 @@ flowchart LR
 ```
 
 Public endpoints never return email addresses or password hashes.
+
+## Admin actions
+
+Admins and site admins manage accounts from `/admin`. Roles and permissions are described in [admin.md](admin.md). Every `/api/admin` request takes this path:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor S as Admin or site admin
+    participant C as Client (/admin)
+    participant A as API (/api/admin)
+    participant D as MongoDB
+
+    S->>C: Edit, reset, delete, or create an account
+    C->>A: PATCH, POST, or DELETE with Bearer token
+    A->>A: requireAuth verifies the JWT, sets req.userId
+    A->>D: requireRole loads the user (role read every request)
+    alt Account gone
+        A-->>C: 401
+    else Role below admin
+        A-->>C: 403 FORBIDDEN
+    else Admin or site admin
+        A->>D: Load the target account (:id)
+        A->>A: canManage: target role ranks below actor, not self
+        A->>A: New role must be in assignableRoles
+        alt Not allowed
+            A-->>C: 403 FORBIDDEN
+        else Delete
+            A->>D: Delete the user's boardAttempts and the user
+            A->>D: recomputeBoardStats for each board they played
+            A-->>C: 200 User deleted
+        else Edit or create
+            A->>D: Save (409 if username or email taken)
+            A-->>C: 200 or 201 user with manageable flag
+        end
+    end
+    C->>C: Show notice, reload the list
+```
+
+Creating an account without a password, or choosing "Reset password", stores a reset token and emails the same link as "forgot password".
+
+### Bootstrapping a site admin
+
+```mermaid
+flowchart TB
+    env["SITE_ADMIN_EMAILS<br/>(backend env)"]
+    start["Server start:<br/>promoteSiteAdmins()"]
+    create["Register or first GitHub/Google sign-in:<br/>roleForEmail()"]
+    cli["npm run set-role -- name role"]
+    users[("users.role")]
+
+    env --> start -->|"verified matching accounts"| users
+    env --> create -->|"new matching account"| users
+    cli -->|"any role, including demoting"| users
+```
+
+An unverified account that matches is not promoted at startup, and a new one still has to verify its email before it can log in. Removing an email from the list does not demote that account; use `npm run set-role -- <username> user`.
