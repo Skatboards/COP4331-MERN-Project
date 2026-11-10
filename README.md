@@ -20,7 +20,8 @@ Solve the daily minesweeper board! Every player gets the same board each day and
 ├── mongo/init/      MongoDB initialization directory
 ├── deploy/          Droplet deployment notes and scripts
 ├── docs/            Diagrams (system design, data flow, ERD), OAuth setup, API lab walkthrough
-├── compose.yaml     Local development stack
+├── compose.dev.yaml   Local development stack
+├── compose.prod.yaml  Optimized production stack
 └── .github/         Continuous integration configuration
 ```
 
@@ -58,7 +59,7 @@ cp .env.example .env
 Build and start the complete development stack:
 
 ```bash
-docker compose up --build
+docker compose -f compose.dev.yaml up --build
 ```
 
 The client and server source directories are bind-mounted into their containers. Vite uses filesystem polling and the server uses Nodemon, so source changes should reload without rebuilding the images.
@@ -76,12 +77,12 @@ The client and server source directories are bind-mounted into their containers.
 Useful commands:
 
 ```bash
-docker compose ps
-docker compose logs --follow
-docker compose down
+docker compose -f compose.dev.yaml ps
+docker compose -f compose.dev.yaml logs --follow
+docker compose -f compose.dev.yaml down
 ```
 
-`docker compose down` preserves the MongoDB volume. Running `docker compose down --volumes` also deletes local database data and cannot be undone.
+`docker compose -f compose.dev.yaml down` preserves the MongoDB volume. Adding `--volumes` also deletes local database data and cannot be undone.
 
 ## Client
 
@@ -194,12 +195,13 @@ The workflow in [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on pus
 
 - Uses Node.js 24 for the client and backend
 - Installs dependencies and runs available lint, build, and test scripts (including the backend API tests)
-- Validates the Compose configuration
-- Builds and starts all services
-- Checks the client, Express health endpoint, and Vite proxy
+- Validates the development and production Compose configurations
+- Builds all four development and production images sequentially with Buildx caching
+- Starts the prebuilt production stack and checks real client routes and the Express health endpoint
+- Confirms production starts with no sample records
 - Captures service logs on failure and cleans up the stack
 
-After every check passes on a push to `main`, the `deploy` job SSHes into the DigitalOcean droplet, resets its checkout to `main`, and rebuilds the stack with `compose.yaml`. See [deploy/README.md](deploy/README.md) for droplet setup and the required repository secrets.
+After every check passes on a push to `main`, the `deploy` job SSHes into the DigitalOcean droplet, resets its checkout to `main`, and rebuilds the backend and client sequentially with `compose.prod.yaml`. See [deploy/README.md](deploy/README.md) for droplet setup and the required repository secrets.
 
 ## Troubleshooting
 
@@ -212,8 +214,8 @@ Change the corresponding value in `.env`, or stop the process using the port.
 Inspect its status and logs:
 
 ```bash
-docker compose ps
-docker compose logs <service-name>
+docker compose -f compose.dev.yaml ps
+docker compose -f compose.dev.yaml logs <service-name>
 ```
 
 ### Dependencies are stale inside a container
@@ -221,7 +223,7 @@ docker compose logs <service-name>
 Each container keeps its installed packages in an anonymous volume. After pulling a change to a `package.json`, rebuild and recreate those volumes (the MongoDB data is kept):
 
 ```bash
-docker compose up --build --renew-anon-volumes
+docker compose -f compose.dev.yaml up --build --renew-anon-volumes
 ```
 
 ### Where is the verification email?
@@ -229,9 +231,9 @@ docker compose up --build --renew-anon-volumes
 Without `SMTP_HOST`, the backend prints each email, including its link, to its log:
 
 ```bash
-docker compose logs backend
+docker compose -f compose.dev.yaml logs backend
 ```
 
 ### Everyone is logged out after the backend restarts
 
-`JWT_SECRET` is empty, so the backend made a new random secret at startup and old tokens no longer verify. Set it in `.env` and run `docker compose up -d backend`.
+`JWT_SECRET` is empty, so the backend made a new random secret at startup and old tokens no longer verify. Set it in `.env` and run `docker compose -f compose.dev.yaml up -d backend`.

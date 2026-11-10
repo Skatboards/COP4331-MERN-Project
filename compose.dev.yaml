@@ -1,7 +1,9 @@
 services:
   client:
+    image: sweeple-client-dev:${IMAGE_TAG:-dev}
     build:
       context: ./client
+      dockerfile: Dockerfile.dev
     restart: unless-stopped
     environment:
       DOMAIN: ${DOMAIN:-}
@@ -9,8 +11,6 @@ services:
       - "${CLIENT_PORT:-5173}:5173"
     volumes:
       - ./client:/app
-      # Keeps the image's installed packages instead of the host's; recreated
-      # with `docker compose up -V` when dependencies change
       - /app/node_modules
     depends_on:
       backend:
@@ -27,24 +27,22 @@ services:
       start_period: 10s
 
   backend:
+    image: sweeple-backend-dev:${IMAGE_TAG:-dev}
     build:
       context: ./backend
+      dockerfile: Dockerfile.dev
     restart: unless-stopped
     environment:
       PORT: 3000
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DATABASE:-GameDB}
-      # Login tokens; without it a random secret is used and logins reset on restart
       JWT_SECRET: ${JWT_SECRET:-}
-      # Site address used in the links in verification and reset emails
       APP_URL: ${APP_URL:-http://localhost:5173}
-      # Without SMTP_HOST, emails are printed to the backend log instead of sent
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_SECURE: ${SMTP_SECURE:-false}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       MAIL_FROM: ${MAIL_FROM:-Sweeple <no-reply@localhost>}
-      # Sign in with GitHub and Google; a provider without both values is off
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}

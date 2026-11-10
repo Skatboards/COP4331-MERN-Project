@@ -1,0 +1,92 @@
+services:
+  client:
+    image: sweeple-client:${IMAGE_TAG:?Set IMAGE_TAG to an immutable release identifier}
+    build:
+      context: ./client
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CLIENT_PORT:?Set CLIENT_PORT}:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:5173').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  backend:
+    image: sweeple-backend:${IMAGE_TAG:?Set IMAGE_TAG to an immutable release identifier}
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      MONGODB_URI: mongodb://mongo:27017/${MONGO_DATABASE:-GameDB}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-Sweeple <no-reply@localhost>}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:?Set GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:?Set GITHUB_CLIENT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?Set GOOGLE_CLIENT_SECRET}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:?Set BACKEND_PORT}:3000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  mongo:
+    image: mongo:7.0.45
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-GameDB}
+    volumes:
+      - mongo_data:/data/db
+      - ./mongo/init/01-create-schema.js:/docker-entrypoint-initdb.d/01-create-schema.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+volumes:
+  mongo_data:
