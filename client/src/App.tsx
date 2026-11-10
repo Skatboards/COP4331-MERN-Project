@@ -1,7 +1,9 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom';
 import SiteHeader from './components/SiteHeader';
+import RequireRole from './components/RequireRole';
 import { useAuth } from './auth/useAuth';
+import { hasRole } from './auth/roles';
 import './App.css';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -10,6 +12,7 @@ const ArchivePage = lazy(() => import('./pages/ArchivePage'));
 const ArchiveBoardPage = lazy(() => import('./pages/ArchiveBoardPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const PasswordResetPage = lazy(() => import('./pages/PasswordResetPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
 const HelpDialog = lazy(() => import('./components/HelpDialog'));
 const SignInDialog = lazy(() => import('./components/SignInDialog'));
 const DevComponentsPage = import.meta.env.DEV
@@ -106,6 +109,7 @@ export default function App() {
       <SiteHeader
         username={user?.username ?? 'Sign in'}
         isAuthenticated={Boolean(user)}
+        showAdmin={hasRole(user, 'admin')}
         theme={theme}
         onThemeToggle={() => setTheme((current) => current === 'light' ? 'dark' : 'light')}
         menuOpen={menuOpen}
@@ -123,6 +127,7 @@ export default function App() {
           <Route path="/archive/:seed" element={<ArchiveBoardPage />} />
           <Route path="/settings" element={<SettingsPage onSignIn={openSignIn} highContrast={highContrast} onHighContrastChange={setHighContrast} />} />
           <Route path="/reset-password" element={<PasswordResetPage />} />
+          <Route path="/admin" element={<RequireRole min="admin"><AdminPage /></RequireRole>} />
           {import.meta.env.DEV && DevComponentsPage && DevColorsPage && (
             <>
               <Route path="/dev/components" element={<DevComponentsPage />} />
