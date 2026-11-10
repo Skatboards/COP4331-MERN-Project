@@ -1,0 +1,29 @@
+{
+  "headers": [
+    {
+      "source": "assets/**",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "index.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/play", "destination": "/index.html" },
+    { "source": "/archive", "destination": "/index.html" },
+    { "source": "/archive/**", "destination": "/index.html" },
+    { "source": "/settings", "destination": "/index.html" },
+    { "source": "/reset-password", "destination": "/index.html" }
+  ]
+}
