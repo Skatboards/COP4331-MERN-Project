@@ -19,6 +19,11 @@ tags:
   - name: Auth
   - name: Users
   - name: Boards
+  - name: Admin
+    description: |
+      Account management for admins and site admins (see docs/admin.md). Admins manage
+      regular users; site admins manage users and admins. Nobody manages their own
+      account, and no route grants the siteadmin role.
 
 paths:
   /api/health:
@@ -426,6 +431,154 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: Accounts the admin can see, sorted by username
+      description: Admins see role user only; site admins see every role (site admins read-only).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: q
+          in: query
+          description: 'Matches username, email, first name, or last name (case-insensitive)'
+          schema: { type: string, example: alex }
+        - name: role
+          in: query
+          description: One role or a comma-separated list
+          schema: { type: string, example: 'admin,siteadmin' }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: One page of accounts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items: { $ref: '#/components/schemas/AdminUser' }
+                  total: { type: integer }
+                  page: { type: integer }
+                  limit: { type: integer }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Admin]
+      summary: Create an account
+      description: |
+        The account starts with a verified email. Without a password, the user is emailed a
+        link to set one. Admins may only create role user; site admins may create user or admin.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email]
+              properties:
+                username: { type: string, pattern: '^[A-Za-z0-9_]{3,20}$', example: newplayer }
+                email: { type: string, format: email, example: newplayer@example.com }
+                firstName: { type: string }
+                lastName: { type: string }
+                role: { type: string, enum: [user, admin], default: user }
+                password: { type: string, minLength: 8, maxLength: 72 }
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/admin/users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    get:
+      tags: [Admin]
+      summary: One account
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: The account
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/AdminUser' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Admin]
+      summary: Edit an account
+      description: Fields left out are unchanged. The target's role must rank below yours, and a new role must be one you may assign.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                firstName: { type: string }
+                lastName: { type: string }
+                username: { type: string, pattern: '^[A-Za-z0-9_]{3,20}$' }
+                email: { type: string, format: email }
+                emailVerified: { type: boolean }
+                role: { type: string, enum: [user, admin] }
+      responses:
+        '200':
+          description: The updated account
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: '#/components/schemas/AdminUser' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Admin]
+      summary: Delete an account and its games
+      description: The stats of every board the user played are recomputed without those games.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Message' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/admin/users/{id}/password-reset:
+    parameters:
+      - $ref: '#/components/parameters/UserId'
+    post:
+      tags: [Admin]
+      summary: Email the user a password reset link
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Message' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -448,6 +601,11 @@ components:
       in: path
       required: true
       schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,64}$', example: daily-2026-10-20 }
+    UserId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, description: The user's id, example: 6af34f3fa28efd19486e0b63 }
 
   responses:
     Message:
@@ -470,6 +628,16 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
     NotFound:
       description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: "Your role does not allow this (code: FORBIDDEN)"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: The username or email is already in use
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -504,6 +672,10 @@ components:
         username: { type: string }
         email: { type: string }
         emailVerified: { type: boolean }
+        role:
+          type: string
+          enum: [user, admin, siteadmin]
+          description: What the user may do on the admin dashboard
         providers:
           type: array
           description: Linked sign-in providers
@@ -511,6 +683,14 @@ components:
         totalClicks: { type: integer }
         boardsCompleted: { type: integer }
         efficiency: { type: number }
+    AdminUser:
+      allOf:
+        - $ref: '#/components/schemas/CurrentUser'
+        - type: object
+          properties:
+            createdAt: { type: string, format: date-time }
+            hasPassword: { type: boolean, description: False for GitHub- or Google-only accounts }
+            manageable: { type: boolean, description: 'Whether the requesting admin may edit, reset, or delete this account' }
     Board:
       type: object
       properties:

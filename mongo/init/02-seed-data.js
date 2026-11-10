@@ -60,6 +60,8 @@ users.forEach(user => {
     const now = new Date();
 
     gameDb.users.insertOne({
+      // Sample players have no admin rights (see docs/admin.md)
+      role: 'user',
       ...user,
       createdAt: now,
       updatedAt: now

@@ -26,6 +26,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/auth', require('./routes/oauth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/boards', require('./routes/boards'));
+app.use('/api/admin', require('./routes/admin'));
 
 // Unknown /api routes get a JSON 404 instead of Express's HTML page
 app.use('/api', (req, res) => {
@@ -50,6 +51,9 @@ if (require.main === module) {
   mongoose
     .connect(url)
     .then(() => console.log('MongoDB connected successfully via Mongoose'))
+    // Accounts listed in SITE_ADMIN_EMAILS become site admins
+    .then(() => require('./lib/bootstrapAdmins').promoteSiteAdmins())
+    .then((promoted) => promoted && console.log(`Promoted ${promoted} account(s) to site admin`))
     .catch((err) => console.error('MongoDB connection error:', err));
 
   const PORT = process.env.PORT || 3000;

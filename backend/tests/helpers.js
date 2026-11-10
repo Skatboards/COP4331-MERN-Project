@@ -48,8 +48,9 @@ function tokenFromLastEmail() {
 
 let userCount = 0;
 
-// Registers and verifies a user through the API; returns the login token
-async function createLoggedInUser(overrides = {}) {
+// Registers and verifies a user through the API; returns the login token.
+// Pass role ('admin' or 'siteadmin') to give the user that role.
+async function createLoggedInUser({ role, ...overrides } = {}) {
   userCount += 1;
   const details = {
     firstName: 'Test',
@@ -70,7 +71,11 @@ async function createLoggedInUser(overrides = {}) {
     .send({ login: details.username, password: details.password })
     .expect(200);
 
-  return { ...details, token: res.body.token, id: res.body.user.id };
+  if (role) {
+    await User.updateOne({ _id: res.body.user.id }, { $set: { role } });
+  }
+
+  return { ...details, role: role || 'user', token: res.body.token, id: res.body.user.id };
 }
 
 module.exports = {
