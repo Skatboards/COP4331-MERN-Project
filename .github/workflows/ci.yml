@@ -177,14 +177,30 @@ jobs:
     timeout-minutes: 15
 
     env:
-      DROPLET_HOST: ${{ secrets.DROPLET_HOST }}
+      DROPLET_HOST: ${{ vars.DROPLET_HOST }}
       DROPLET_USER: ${{ secrets.DROPLET_USER }}
-      DROPLET_APP_PATH: /home/mern/sweeple
-      DEPLOY_SHA: ${{ github.sha }}
+      DROPLET_APP_PATH: ${{ secrets.DROPLET_APP_PATH }}
       # The droplet's public SSH host key, so the job only talks to that server
-      DROPLET_HOST_KEY: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIP9HNw3Y+r+twBKVtDP0LnfkDK0IH/FsBhfB5yZnLGXG
+      DROPLET_HOST_KEY: ${{ vars.DROPLET_HOST_KEY }}
+      DEPLOY_SHA: ${{ github.sha }}
 
     steps:
+      - name: Validate deployment configuration
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in DROPLET_HOST DROPLET_USER DROPLET_APP_PATH DROPLET_HOST_KEY SSH_PRIVATE_KEY; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("$name")
+            fi
+          done
+          if [ "${#missing[@]}" -ne 0 ]; then
+            printf 'Missing production environment configuration: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}

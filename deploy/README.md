@@ -14,7 +14,7 @@ docker compose -f compose.prod.yaml up -d --no-build --remove-orphans --wait
 
 The backend and client builds run sequentially to reduce peak memory use. Production has no source or `node_modules` mounts; the named `mongo_data` volume is retained.
 
-It then checks `/api/health` from inside the backend container. Public HTTPS checks and rollback
+It then checks `/api/health` from inside the backend container.
 
 `git reset --hard` discards any edits made directly in the droplet's checkout. Make changes through `main`. Ignored files such as `.env` are kept, and so is the `mongo_data` volume.
 
@@ -71,19 +71,35 @@ It needs a one-time nginx change first (agree it with the droplet owner): in the
 
 The droplet has about 1 GB of RAM and no swap, so image builds during a deploy can run short of memory. A VS Code Remote-SSH session alone uses about 500 MB; disconnect it (or run "Remote-SSH: Kill VS Code Server on Host") before deploying.
 
-## Repository secrets
+## GitHub production environment
 
-The deploy job uses these existing repository secrets:
+The deploy job declares the GitHub Actions `production` environment. Configure its values under **Settings > Environments > production** rather than hardcoding deployment-specific configuration in the workflow. Environment protection rules can require approval or restrict which branches are allowed to deploy.
+
+Add these non-sensitive values as **environment variables**:
+
+| Variable | Value |
+| --- | --- |
+| `DROPLET_HOST` | Droplet hostname or IP address |
+| `DROPLET_USER` | SSH user whose `authorized_keys` contains the deployment key |
+| `DROPLET_APP_PATH` | Absolute checkout path, currently `/home/mern/sweeple` |
+| `DROPLET_HOST_KEY` | Pinned public SSH host key in `<type> <base64-key>` form, such as `ssh-ed25519 AAAA...` |
+
+Add this sensitive value as an **environment secret**:
 
 | Secret | Value |
 | --- | --- |
-| `DROPLET_HOST` | Droplet IP |
-| `DROPLET_USER` | SSH user (the deploy key is authorized for `root`) |
-| `SSH_PRIVATE_KEY` | Private key matching the `github-actions-deploy-MERN` entry in that user's `authorized_keys` |
+| `SSH_PRIVATE_KEY` | Private key matching the deployment entry in `DROPLET_USER`'s `authorized_keys` |
 
-The checkout path, the droplet's public SSH host key, and the site URL are set directly in the workflow because they are not secret. If the droplet is rebuilt, update the host key in `ci.yml` with `ssh-keyscan -t ed25519 <droplet-ip>`.
+The workflow validates that every required variable and secret is non-empty before opening an SSH connection. GitHub Actions configuration variables are not masked in logs, so credentials and private keys must remain secrets. The hostname, username, checkout path, and public host key do not require secrecy.
+
+`DROPLET_HOST_KEY` is used with `StrictHostKeyChecking=yes`; it is a trust anchor even though it is public. Obtain and verify the expected fingerprint through an independent channel before saving the full public key. Do not establish trust by running `ssh-keyscan` inside every deployment. If the droplet is rebuilt, independently verify the new fingerprint and then replace the environment variable. Never put the server's private host key in GitHub.
+
+The application variables in the droplet's ignored `.env` file are runtime inputs to Compose and are separate from the Actions environment above. They remain on the server with the current deployment workflow. In particular, `JWT_SECRET`, OAuth client secrets, and `SMTP_PASS` must not be converted to GitHub configuration variables. If runtime-environment delivery is later moved into Actions, store sensitive values as production environment secrets and map permitted GitHub-side names to the names expected by Compose.
+
+GitHub does not allow Actions variables or secrets whose names begin with `GITHUB_`. Use names such as `OAUTH_GITHUB_CLIENT_ID` and `OAUTH_GITHUB_CLIENT_SECRET` on GitHub, then map them to the application's `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` environment names in the workflow. The `GITHUB_` names shown in the droplet `.env` example are valid there because that file is read by Compose, not created as GitHub Actions configuration.
 
 ## Troubleshooting
 
 - See container status and logs on the droplet: `cd /home/mern/sweeple && docker compose -f compose.prod.yaml ps` and `docker compose -f compose.prod.yaml logs --tail 100`.
-- `Host key verification failed` in the deploy job means the droplet's host key changed; update it in `ci.yml`.
+- `Missing production environment configuration` means one or more required values are absent from the GitHub `production` environment. The message lists names only, never values.
+- `Host key verification failed` means the server did not present the public key stored in the `DROPLET_HOST_KEY` production environment variable. Verify whether the server was legitimately rebuilt or rekeyed before changing the variable.
