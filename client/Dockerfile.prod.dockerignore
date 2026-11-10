@@ -1,0 +1,14 @@
+*
+!package.json
+!package-lock.json
+!index.html
+!tsconfig.app.json
+!tsconfig.json
+!tsconfig.node.json
+!vite.config.ts
+!serve.json
+!src/
+!src/**
+!runtime/
+!runtime/package.json
+!runtime/package-lock.json
