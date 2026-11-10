@@ -1,98 +1,98 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { Pressable, View, Text, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors } from '../constants/sweeple';
+import { login } from '../api/auth'
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+export default function SignInScreen() {
+  const [loginName, setLoginName] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [welcome, setWelcome] = useState('');
+  async function onSignIn(){
+    setError('');
+    setLoading(true);
+    try {
+      const {user} = await login(loginName, password);
+      setWelcome(`signed in as ${user.username}`);
+      } catch(e){
+        setError(e instanceof Error ? e.message : 'Something Went Wrong.');
+      } finally{
+        setLoading(false)
+      }
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+  } 
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
+    <SafeAreaView style={styles.screen}>
+      <View style = {styles.header}>
+        <Text style = {styles.wordmark}>
+          {/*The sweeple title centered with the dot, inspiration taken from
+          the front end */}
+          sweeple<Text style={{ color: colors.brand}}>.</Text>
+        </Text>
+      </View>
+            
+      <View style = {styles.form}>
+          <Text style = {styles.label}>Email or username</Text>
+          <TextInput
+            style = {styles.input}
+            placeholder = "you@example.com"
+            placeholderTextColor= "#999a92"
+            autoCapitalize="none"
+            value = {loginName}
+            onChangeText = {setLoginName}/>
+          <Text style = {styles.label}>Password</Text>
+          <TextInput 
+          style = {styles.input} 
+          secureTextEntry
+          value = {password}
+          onChangeText = {setPassword}
+          />
+          {error ? <Text style={styles.error}>{error}</Text>: null}
+          {welcome ? <Text style={styles.welcome}>{welcome}</Text> : null}
+          <Pressable style = {styles.button}
+          onPress = {onSignIn}>
+            <Text style={styles.buttonText}>Sign in</Text>
+          </Pressable>
+          </View>
+    </SafeAreaView>
   );
 }
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
-  );
-}
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+    backgroundColor: colors.page,
+    paddingHorizontal: 24,
   },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
+  header: {alignItems: 'center', marginTop: 60, marginBottom: 32, gap: 8},
+  wordmark: { fontSize: 36, fontWeight: '800', letterSpacing: -1.8, color: colors.text},
+  tagline: {fontSize: 15, color: colors.textSoft, textAlign: 'center'},
+  form: { gap: 8},
+  label: { fontSize: 13, fontWeight: '600', color: colors.text, marginTop: 8},
+  input: {
+    height: 50, 
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 14, 
+    fontSize: 16,
+    color: colors.text
+  },
+
+  button:{
+    height: 54,
+    borderRadius: 16,
+    backgroundColor: colors.lime,
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    marginTop: 16,
   },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  buttonText: {fontSize: 17, fontWeight: '700', color: colors.text},
+  error: { color: colors.error, fontSize: 14, marginTop: 8},
+  welcome: {color: colors.brandText, fontSize: 14, fontWeight: '600', marginTop: 8},
 });
