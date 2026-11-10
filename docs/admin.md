@@ -72,6 +72,26 @@ docker compose exec backend npm run set-role -- alexrivera siteadmin
 
 Rows you cannot manage, such as site admins and your own row, show no actions.
 
+### Screenshots
+
+| Site admin: Users tab | Site admin: Admins tab |
+| --- | --- |
+| ![Users tab](images/admin/admin-users-tab.png) | ![Admins tab](images/admin/admin-admins-tab.png) |
+| **Admin: users only, no tabs** | **Edit dialog with role** |
+| ![Admin view](images/admin/admin-admin-view.png) | ![Edit dialog](images/admin/admin-edit-dialog.png) |
+| **New user** | **Delete confirmation** |
+| ![New user dialog](images/admin/admin-new-user-dialog.png) | ![Delete confirmation](images/admin/admin-delete-confirm.png) |
+
+Promoting a user to admin and back:
+
+![Promote and demote demo](images/admin/admin-demo-promote.gif)
+
+Creating a user, then deleting them:
+
+![Create and delete demo](images/admin/admin-demo-create-delete.gif)
+
+The dashboard also has a dark mode ([screenshot](images/admin/admin-dark-mode.png)) and a phone layout ([screenshot](images/admin/admin-phone.png)). The Admin link in the account menu is shown in [this screenshot](images/admin/admin-account-menu.png).
+
 ## API
 
 Every route requires `Authorization: Bearer <token>` from an admin or site admin. A missing or expired login gets 401, and a role that is too low gets `403 { error: 'Not allowed', code: 'FORBIDDEN' }`. The full description is in [backend/openapi.yaml](../backend/openapi.yaml) under the **Admin** tag, and the [Bruno collection](../bruno/) has an `Admin` folder.
