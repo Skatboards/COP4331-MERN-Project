@@ -3,6 +3,7 @@ import { Pressable, View, Text, StyleSheet, TextInput, ActivityIndicator } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../constants/sweeple';
 import { login } from '../api/auth'
+import { Link } from 'expo-router';
 
 export default function SignInScreen() {
   const [loginName, setLoginName] = useState('');
@@ -55,6 +56,9 @@ export default function SignInScreen() {
           onPress = {onSignIn}>
             <Text style={styles.buttonText}>Sign in</Text>
           </Pressable>
+          <Link href="/register" style = {styles.Link}>
+            No Account? <Text style={styles.linkStrong}>Create one</Text>
+          </Link>
           </View>
     </SafeAreaView>
   );
@@ -95,4 +99,6 @@ const styles = StyleSheet.create({
   buttonText: {fontSize: 17, fontWeight: '700', color: colors.text},
   error: { color: colors.error, fontSize: 14, marginTop: 8},
   welcome: {color: colors.brandText, fontSize: 14, fontWeight: '600', marginTop: 8},
+  Link: { textAlign: 'center', marginTop: 16, fontSize: 14, color: colors.textSoft},
+  linkStrong: { color: colors.brandText, fontWeight: '700'},
 });
