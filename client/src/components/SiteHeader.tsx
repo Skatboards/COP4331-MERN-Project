@@ -40,7 +40,7 @@ export default function SiteHeader({ username, isAuthenticated, showAdmin = fals
             <div className="account-menu" role="menu">
               <Link role="menuitem" to="/archive" onClick={onMenuClose}>Archive <span>↗</span></Link>
               <Link role="menuitem" to="/settings" onClick={onMenuClose}>Settings <span>⚙</span></Link>
-              {showAdmin && <Link role="menuitem" to="/admin" onClick={onMenuClose}>Admin <span>⛭</span></Link>}
+              {showAdmin && <Link role="menuitem" to="/admin" onClick={onMenuClose}>Admin <span>⚑</span></Link>}
               <div className="menu-divider" />
               <button role="menuitem" onClick={onAccountAction}>{isAuthenticated ? 'Sign out' : 'Sign in'} <span>{isAuthenticated ? '⇥' : '↗'}</span></button>
             </div>
