@@ -263,6 +263,28 @@ h1,h2 { font-family:'Segoe UI',system-ui,sans-serif; letter-spacing:-1.3px; }
 .rule-card { min-height:155px; padding:17px; border:1px solid var(--line); border-radius:13px; background:var(--surface); box-shadow:var(--shadow-card); }
 .rule-number { color:var(--brand); font-size:10px; font-weight:800; letter-spacing:1px; }
 .rule-card h3 { margin:14px 0 7px; color:var(--text); font-size:13px; }
+.dev-reference-page { max-width:840px; }
+.dev-reference-page .page-heading { align-items:end; }
+.dev-reference-page code { padding:2px 5px; border-radius:4px; background:var(--surface-alt); color:var(--brand-text); font:11px ui-monospace,SFMono-Regular,Consolas,monospace; }
+.dev-reference-section { margin:22px 0; }
+.dev-reference-section>h2 { margin-bottom:11px; color:var(--text-soft); font-size:15px; letter-spacing:-.3px; }
+.dev-component-sample { display:flex; align-items:center; flex-wrap:wrap; gap:18px; padding:18px; border:1px solid var(--line); border-radius:13px; background:var(--surface); }
+.dev-component-sample .back-link { color:var(--brand); }
+.dev-reference-note { color:var(--muted); font-size:11px; }
+.dev-card-samples { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.dev-sample-card { margin:0; padding:17px; }
+.dev-sample-card>strong { font-size:13px; }
+.dev-sample-card>p { margin-top:7px; color:var(--muted); font-size:11px; }
+.dev-board-sample { margin-top:12px; }
+.dev-board-sample .board-card { box-shadow:none; }
+.dev-color-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.dev-color-card { display:flex; align-items:center; gap:11px; min-width:0; padding:10px; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+.dev-color-swatch { flex:0 0 40px; height:40px; border:1px solid var(--line-strong); border-radius:8px; box-shadow:inset 0 0 0 1px #00000008; }
+.dev-color-card div { display:grid; gap:5px; min-width:0; }
+.dev-color-card strong { overflow:hidden; color:var(--text); font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.dev-color-card code { overflow:hidden; color:var(--muted); font:10px ui-monospace,SFMono-Regular,Consolas,monospace; text-overflow:ellipsis; white-space:nowrap; }
+.dev-reference-page>.dev-reference-note { margin-top:16px; line-height:1.5; }
+@media (max-width: 620px) { .dev-color-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .dev-card-samples { grid-template-columns:1fr; } }
 .rule-card p { color:var(--muted); font-size:11px; line-height:1.55; }
 .landing-help-link { display:flex; align-items:center; justify-content:space-between; gap:18px; width:fit-content; margin:15px 0 0 auto; padding:10px 12px; border:1px solid var(--line-strong); border-radius:9px; color:var(--brand); font-size:11px; font-weight:600; text-decoration:none; }
 .landing-help-link:hover { background:var(--surface-hover); }
