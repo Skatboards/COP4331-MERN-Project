@@ -11,6 +11,10 @@ Sweeple is a React, TypeScript, and Vite Minesweeper game. The frontend provides
 - `/settings` — account and display preferences.
 - `/reset-password` — password reset flow.
 
+## Developer reference pages
+
+When running the Vite development server, use `/dev/components` for a small showcase of shared interface components and `/dev/colors` to inspect the semantic color tokens in the current theme. The color swatches update with the theme control in the site header. These routes are registered only when `import.meta.env.DEV` is true and are omitted from production builds.
+
 ## Setup
 
 From this directory, install dependencies and start the development server:
