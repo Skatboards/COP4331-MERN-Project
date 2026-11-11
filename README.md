@@ -159,6 +159,7 @@ All requests and responses are JSON. The full description is in [backend/openapi
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | Returns `{ "status": "ok" }` |
+| `GET` | `/api/health/ready` | Returns generic dependency readiness, or HTTP 503 when unavailable |
 | `GET` | `/api/ping` | Returns `{ "message": "Hello World" }` |
 | `POST` | `/api/auth/register` | Create an account and email a verification link |
 | `GET` | `/api/auth/verify-email?token=` | The link in the email: verifies, then redirects to the site with `?verified=1` or `0` |
@@ -197,11 +198,11 @@ The workflow in [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on pus
 - Installs dependencies and runs available lint, build, and test scripts (including the backend API tests)
 - Validates the development and production Compose configurations
 - Builds all four development and production images sequentially with Buildx caching
-- Starts the prebuilt production stack and checks real client routes and the Express health endpoint
+- Starts the prebuilt production stack and checks real client routes, API liveness, and MongoDB readiness
 - Confirms production starts with no sample records
 - Captures service logs on failure and cleans up the stack
 
-After every check passes on a push to `main`, the deploy job checks out the exact tested commit on the DigitalOcean droplet and rebuilds the backend and client sequentially with `compose.prod.yaml`. It records the release only after a public HTTPS health check succeeds and rolls a failed replacement back to the previous SHA-tagged images and matching runtime configuration. See [deploy/README.md](deploy/README.md) for setup and the required GitHub production environment configuration.
+After every check passes on a push to `main`, the deploy job checks out the exact tested commit on the DigitalOcean droplet and rebuilds the backend and client sequentially with `compose.prod.yaml`. It records the release only after the public HTTPS client routes, API liveness, and MongoDB readiness checks succeed. A failed replacement is rolled back to the previous SHA-tagged images and matching runtime configuration, then the complete check set is repeated. See [deploy/README.md](deploy/README.md) for setup and the required GitHub production environment configuration.
 
 ## Troubleshooting
 

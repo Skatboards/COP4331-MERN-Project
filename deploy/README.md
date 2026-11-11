@@ -11,7 +11,15 @@ bash deploy/release.sh deploy "$DEPLOY_SHA" "$RUNTIME_ENV_ID"
 
 [`release.sh`](release.sh) validates the production configuration, builds the backend and then the client sequentially, records disk and memory diagnostics, and starts the prebuilt images with `--no-build --wait`. Production has no source or `node_modules` mounts; the named `mongo_data` volume is retained.
 
-The GitHub-hosted runner checks `${PUBLIC_URL}/api/health` over HTTPS. Only after that succeeds does the workflow record the SHA as successful and prune dangling image layers and build cache older than seven days. SHA-tagged current and previous application images are retained.
+The GitHub-hosted runner checks `/`, `/play`, `/archive`,
+`/archive/daily-2026-10-20`, and `/settings` at `PUBLIC_URL` over HTTPS and
+requires the client application marker in every response. It also validates
+the JSON returned by `/api/health` and `/api/health/ready`; the latter returns
+generic readiness after a bounded MongoDB ping and caches the result for five
+seconds. Normal TLS certificate verification remains enabled.
+Only after the complete check set succeeds does the workflow record the SHA as
+successful and prune dangling image layers and build cache older than seven
+days. SHA-tagged current and previous application images are retained.
 
 The forced detached checkout discards edits to tracked files in the droplet checkout. Make changes through `main`. Ignored deployment state and runtime environments are retained, as is the `mongo_data` volume.
 
@@ -29,7 +37,7 @@ The workflow creates a release-specific Compose environment from the GitHub `pro
 
 Compose always receives the appropriate file through `--env-file`. The state records both the Git commit and its runtime-environment identifier, so rollback restores matching code, images, and configuration—even when the same commit is redeployed with changed settings. `.deploy/` is ignored by Git and must never be committed, logged, cached, or uploaded as an artifact.
 
-If a build fails before replacement starts, the running stack remains unchanged and the checkout returns to the running release. If startup or the public HTTPS check fails after replacement starts, the workflow captures status and recent logs, checks out the previous successful SHA, recreates its images with `--no-build --wait`, and repeats the public health check. A first deployment has no rollback target, so a failure preserves diagnostic state for manual recovery.
+If a build fails before replacement starts, the running stack remains unchanged and the checkout returns to the running release. If startup or any public HTTPS check fails after replacement starts, the workflow captures status and recent logs, checks out the previous successful SHA, recreates its images with `--no-build --wait`, and repeats the complete public route and health check set. A first deployment has no rollback target, so a failure preserves diagnostic state for manual recovery.
 
 ## Droplet layout
 

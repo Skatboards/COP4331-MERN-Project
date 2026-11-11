@@ -24,3 +24,8 @@ test('a malformed JSON body returns 400', async () => {
     .send('{"login":')
     .expect(400);
 });
+
+test('GET /api/health/ready reports unavailable without a database', async () => {
+  const res = await request(app).get('/api/health/ready').expect(503);
+  assert.deepEqual(res.body, { status: 'unavailable' });
+});

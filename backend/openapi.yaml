@@ -35,6 +35,31 @@ paths:
                 properties:
                   status: { type: string, example: ok }
 
+  /api/health/ready:
+    get:
+      tags: [Health]
+      summary: Dependency readiness check
+      description: Performs a bounded, briefly cached database ping and returns no dependency details.
+      responses:
+        '200':
+          description: Required dependencies are ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, example: ok }
+        '503':
+          description: A required dependency is unavailable or did not answer before the timeout
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, example: unavailable }
+
   /api/ping:
     get:
       tags: [Health]
