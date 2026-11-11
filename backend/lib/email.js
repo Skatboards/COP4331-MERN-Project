@@ -2,12 +2,14 @@ const nodemailer = require('nodemailer');
 
 // Address of the site, used to build the links in emails
 const APP_URL = (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, '');
-const MAIL_FROM = process.env.MAIL_FROM || 'Sweeple <no-reply@localhost>';
 
 // Emails go out over SMTP when SMTP_HOST is set. Otherwise they are printed
 // to the backend log, so the links can be copied during local development.
 let transport = null;
 if (process.env.SMTP_HOST) {
+  if (!process.env.MAIL_FROM_NAME || !process.env.MAIL_FROM_ADDRESS) {
+    throw new Error('MAIL_FROM_NAME and MAIL_FROM_ADDRESS are required when SMTP_HOST is set');
+  }
   transport = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT || 587),
@@ -21,7 +23,12 @@ if (process.env.SMTP_HOST) {
 // Tests replace this to capture outgoing mail instead of sending it
 let sender = async (message) => {
   if (transport) {
-    await transport.sendMail({ from: MAIL_FROM, ...message });
+    await transport.sendMail({
+      from:
+        `"${process.env.MAIL_FROM_NAME}" ` +
+        `<${process.env.MAIL_FROM_ADDRESS}>`,
+      ...message
+    });
   } else if (process.env.NODE_ENV !== 'test') {
     console.log(`[email] To: ${message.to}\nSubject: ${message.subject}\n${message.text}`);
   }

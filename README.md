@@ -52,7 +52,7 @@ cp .env.example .env
 | `SITE_ADMIN_EMAILS` | empty | Comma-separated emails of site admins. Matching verified accounts are promoted on startup and when created (see [docs/admin.md](docs/admin.md)) |
 | `APP_URL` | `http://localhost:5173` | Site address used in the links in emails |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | empty, `587`, `false` | Outgoing mail server. With `SMTP_HOST` empty, emails are printed to the backend log |
-| `MAIL_FROM` | `Sweeple <no-reply@localhost>` | Sender of verification and reset emails |
+| `MAIL_FROM_NAME`, `MAIL_FROM_ADDRESS` | empty | Display name and address for verification and reset emails; both are required when `SMTP_HOST` is set |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | empty | Turns on "Continue with GitHub" (see [docs/oauth.md](docs/oauth.md)) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | empty | Turns on "Continue with Google" |
 
