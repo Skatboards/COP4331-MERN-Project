@@ -30,6 +30,38 @@ jobs:
         working-directory: ${{ matrix.workspace }}
         run: npm ci
 
+      - name: Warn about high-severity production client vulnerabilities
+        if: matrix.workspace == 'client'
+        working-directory: client/runtime
+        run: |
+          set -euo pipefail
+          audit_file="$RUNNER_TEMP/client-runtime-npm-audit.json"
+
+          set +e
+          npm audit --omit=dev --audit-level=high --json > "$audit_file"
+          audit_status=$?
+          set -e
+
+          if jq --exit-status . "$audit_file" >/dev/null 2>&1; then
+            high_count="$(jq --raw-output '.metadata.vulnerabilities.high // 0' "$audit_file")"
+            critical_count="$(jq --raw-output '.metadata.vulnerabilities.critical // 0' "$audit_file")"
+            if (( high_count > 0 || critical_count > 0 )); then
+              echo "::warning file=client/runtime/package-lock.json,title=Production npm vulnerabilities::npm audit found ${high_count} high and ${critical_count} critical vulnerabilities in the client runtime dependencies."
+              {
+                echo '## Production client dependency warning'
+                echo
+                echo "npm audit found **${high_count} high** and **${critical_count} critical** vulnerabilities."
+                echo 'Review the audit log and `client/runtime/package-lock.json`.'
+              } >> "$GITHUB_STEP_SUMMARY"
+            elif (( audit_status != 0 )); then
+              echo '::warning file=client/runtime/package-lock.json,title=npm audit unavailable::npm audit did not complete successfully; review the step log.'
+            fi
+          else
+            echo '::warning file=client/runtime/package-lock.json,title=npm audit unavailable::npm audit did not return a valid report; review the step log.'
+          fi
+
+          cat "$audit_file"
+
       - name: Lint
         working-directory: ${{ matrix.workspace }}
         run: npm run lint --if-present
