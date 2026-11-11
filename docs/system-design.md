@@ -1,6 +1,10 @@
 # System design
 
-Sweeple is a MERN app: a React client, an Express API, and MongoDB, each in its own container from [compose.yaml](../compose.yaml). The same Compose stack runs locally and on the DigitalOcean droplet.
+Sweeple is a MERN app with a React client, an Express API, and MongoDB.
+[`compose.dev.yaml`](../compose.dev.yaml) provides the source-mounted local
+development environment; [`compose.prod.yaml`](../compose.prod.yaml) defines
+the optimized, loopback-bound production stack. The two environments are
+explicit rather than layered on a shared default Compose file.
 
 ## Deployment overview
 
@@ -21,9 +25,9 @@ flowchart LR
     subgraph Droplet["DigitalOcean droplet"]
         nginx["nginx<br/>HTTPS (Certbot)<br/>sweeple.natreese.dev"]
         subgraph Stack["Docker Compose stack (project sweeple)"]
-            client["client<br/>Vite dev server<br/>127.0.0.1:5173"]
+            client["client<br/>compiled React + serve<br/>127.0.0.1:5173"]
             backend["backend<br/>Express 5 + Mongoose<br/>127.0.0.1:3001 to :3000"]
-            mongo[("mongo<br/>MongoDB 7.0<br/>127.0.0.1:27017")]
+            mongo[("mongo<br/>MongoDB 7.0<br/>internal network only")]
             vol[("mongo_data<br/>volume")]
         end
     end
@@ -36,8 +40,8 @@ flowchart LR
     mobile -->|HTTPS JSON| cf
     swagger -->|HTTPS JSON| cf
     cf --> nginx
-    nginx -->|"proxy (after switch-site.sh new)"| client
-    client -->|"/api/* proxy"| backend
+    nginx -->|"client paths"| client
+    nginx -->|"/api/*"| backend
     backend -->|Mongoose| mongo
     mongo --- vol
     backend -->|"verification and reset emails"| smtp
@@ -45,30 +49,41 @@ flowchart LR
     backend -->|"code exchange,<br/>profile"| idp
 ```
 
-- Only nginx is reachable from the internet. The containers listen on `127.0.0.1`.
-- The Vite server serves the React app and forwards every `/api/*` request to the `backend` service, so the browser only ever talks to one origin.
-- nginx still sends the domain to the older pm2 app until `deploy/switch-site.sh new` is run (see [deploy/README.md](../deploy/README.md)).
+- Only the separately managed host Nginx service is reachable from the internet. The client and backend host ports listen on `127.0.0.1`; MongoDB has no production host port.
+- The production client is still a container, but it runs the locked `serve` static-server dependency rather than Vite or an embedded Nginx process.
+- Host Nginx terminates HTTPS, sends client paths to the client container, and sends `/api/*` directly to the backend container. Deployment verifies this routing but does not modify Nginx.
 - Without `SMTP_HOST`, the backend prints emails to its log instead of sending them.
 
 ## Containers
 
 ```mermaid
 flowchart TB
-    subgraph compose["compose.yaml"]
-        client["client<br/>build: ./client<br/>port CLIENT_PORT to 5173<br/>bind mount ./client"]
-        backend["backend<br/>build: ./backend<br/>port BACKEND_PORT to 3000<br/>bind mount ./backend"]
-        mongo["mongo<br/>image: mongo:7.0.45<br/>port 127.0.0.1:MONGO_PORT to 27017"]
-        init["./mongo/init<br/>01-create-schema.js<br/>02-seed-data.js"]
-        data[("mongo_data")]
+    subgraph dev["compose.dev.yaml"]
+        devClient["client: Vite<br/>source mount + hot reload"]
+        devBackend["backend: Nodemon<br/>source mount + reload"]
+        devMongo["MongoDB<br/>loopback host port"]
+        devInit["schema + sample seed scripts"]
     end
 
-    client -->|"depends_on: healthy"| backend
-    backend -->|"depends_on: healthy"| mongo
-    init -->|"runs once on an empty volume"| mongo
-    mongo --- data
+    subgraph prod["compose.prod.yaml"]
+        prodClient["client: compiled dist + serve<br/>loopback host port"]
+        prodBackend["backend: Node<br/>loopback host port"]
+        prodMongo["MongoDB<br/>internal network only"]
+        prodInit["schema script only"]
+    end
+
+    devInit --> devMongo
+    devClient --> devBackend --> devMongo
+    prodInit --> prodMongo
+    prodClient --> prodBackend --> prodMongo
+    devMongo --- devData[("development mongo_data")]
+    prodMongo --- prodData[("production mongo_data")]
 ```
 
-Each service has a health check (`GET /` for the client, `GET /api/health` for the backend, a `ping` for MongoDB), and Compose starts them in order once the one before is healthy.
+Both stacks order services with health checks. Development uses process
+liveness for the backend; production uses `GET /api/health/ready`, which
+performs a bounded MongoDB ping and briefly caches the generic result. The
+production database excludes sample seed data.
 
 ## Backend modules
 
@@ -115,10 +130,17 @@ flowchart TB
 flowchart LR
     dev["Developer"] -->|"push / pull request"| gh["GitHub<br/>Skatboards/COP4331-MERN-Project"]
     gh --> quality["quality job<br/>client + backend:<br/>npm ci, lint, build, test"]
-    quality --> composeJob["compose job<br/>docker compose up --wait<br/>curl health checks"]
+    quality --> composeJob["compose job<br/>sequential Buildx builds<br/>production smoke checks"]
     composeJob -->|"push to main only"| deploy["deploy job<br/>(environment: production)"]
-    deploy -->|SSH| droplet["Droplet<br/>git reset --hard origin/main<br/>docker compose up -d --build -V"]
-    droplet --> check["curl 127.0.0.1:5173/api/health"]
+    deploy -->|"protected env + exact SHA over SSH"| droplet["Droplet<br/>sequential image builds<br/>up --no-build --wait"]
+    droplet --> check["GitHub runner<br/>public HTTPS routes,<br/>liveness + readiness"]
+    check -->|pass| finalize["record release<br/>prune stale cache"]
+    check -->|fail| rollback["restore previous SHA images<br/>and matching environment"]
 ```
 
-The backend `test` step runs the API tests against an in-memory MongoDB, so it needs no database service. Pull requests run the first two jobs only.
+The backend tests use an in-memory MongoDB. CI builds Docker images in explicit
+sequential steps with separate Buildx cache scopes. Pull requests stop after
+quality and Compose verification. A successful push deploys the exact commit
+tested by that run, transfers a mode-`0600` release-specific environment, and
+retains the previous successful images and configuration until public checks
+pass. `DROPLET_USER` and `DROPLET_APP_PATH` are GitHub environment secrets.

@@ -3,13 +3,27 @@
 Every push to `main` that passes CI is deployed to the DigitalOcean droplet by the `deploy` job in [.github/workflows/ci.yml](../.github/workflows/ci.yml). The job deploys the exact commit tested by that workflow, even if `main` advances while the job is running:
 
 ```bash
-cd /home/mern/sweeple
+cd /absolute/path/configured-in-DROPLET_APP_PATH
 git fetch --prune origin main
 git checkout --detach --force "$DEPLOY_SHA"
 bash deploy/release.sh deploy "$DEPLOY_SHA" "$RUNTIME_ENV_ID"
 ```
 
 [`release.sh`](release.sh) validates the production configuration, builds the backend and then the client sequentially, records disk and memory diagnostics, and starts the prebuilt images with `--no-build --wait`. Production has no source or `node_modules` mounts; the named `mongo_data` volume is retained.
+
+CI uses Buildx with separate GitHub Actions cache scopes for each development
+and production image. Those remote CI caches speed up repeated workflow builds
+but are not downloaded to the droplet. Deployment uses the droplet's local
+BuildKit layer cache: `release.sh` finishes the backend build before starting
+the client build so the two Node builds cannot compete for memory. Only after a
+release passes every public check does finalization prune dangling images and
+builder cache older than seven days. The current and immediately previous
+SHA-tagged application images remain available for rollback.
+
+The production client remains containerized and runs the locked `serve`
+runtime. It does not contain Nginx. The existing host Nginx installation owns
+TLS and routes client paths to `127.0.0.1:${CLIENT_PORT}` and `/api` directly to
+`127.0.0.1:${BACKEND_PORT}`.
 
 The GitHub-hosted runner checks `/`, `/play`, `/archive`,
 `/archive/daily-2026-10-20`, and `/settings` at `PUBLIC_URL` over HTTPS and
@@ -41,21 +55,19 @@ If a build fails before replacement starts, the running stack remains unchanged 
 
 ## Droplet layout
 
-- Checkout: `/home/mern/sweeple` (cloned over HTTPS; the repository is public).
-- Protected environments and deployment state: `/home/mern/sweeple/.deploy/`, managed by the workflow as described above.
-- The production client and backend ports are bound to `127.0.0.1` by `compose.prod.yaml`, and MongoDB is not published to the host. Port 3000 is left for the existing pm2 app.
+- Checkout: the absolute path stored in the `DROPLET_APP_PATH` GitHub environment secret (the repository is cloned over HTTPS).
+- Protected environments and deployment state: `<DROPLET_APP_PATH>/.deploy/`, managed by the workflow as described above.
+- The production client and backend ports are bound to `127.0.0.1` by `compose.prod.yaml`, and MongoDB is not published to the host.
 - `APP_URL` is used in verification links, password-reset links, and OAuth callbacks.
 - `JWT_SECRET` signs login tokens and is required by the production configuration.
-
-- For the API lab, Bruno must reach the API over HTTPS, which needs nginx switched to this stack (below). See [docs/api-lab-demo.md](../docs/api-lab-demo.md).
-- nginx on the droplet terminates HTTPS for `sweeple.natreese.dev` (Certbot certificate) and currently sends it to the older pm2 app on port 3000.
+- Before deployment, verify that the separately managed host Nginx upstreams match the `CLIENT_PORT` and `BACKEND_PORT` production variables. The workflow does not edit or reload Nginx.
 
 ## Email
 
 Account verification and password reset emails are sent over SMTP when `SMTP_HOST` is set. Until then the backend prints each email to its log. To inspect the backend logs for the currently deployed release:
 
 ```bash
-cd /home/mern/sweeple
+cd /absolute/path/configured-in-DROPLET_APP_PATH
 read -r IMAGE_TAG RUNTIME_ENV_ID < .deploy/last-successful-release
 export IMAGE_TAG
 docker compose --env-file ".deploy/environments/${RUNTIME_ENV_ID}.env" \
@@ -66,19 +78,22 @@ Add `| grep -A4 '\[email\]'` to the final command to show only the development e
 
 DigitalOcean blocks outgoing SMTP on ports 25, 465, and 587 for many droplets. Use a transactional email provider (for example SendGrid, Mailgun, Brevo, or Resend) on a port it offers outside that range, such as 2525 or 2587, and configure its values in the GitHub `production` environment. Most providers also require verifying the sending domain (DNS records for `natreese.dev`), which needs the domain owner.
 
-## Switching the domain to this stack
+## Host Nginx integration
 
-[`switch-site.sh`](switch-site.sh) swaps which app nginx serves, with no downtime:
+Host Nginx is already configured and is managed outside this deployment. Do
+not add Nginx to the client image and do not modify the host configuration from
+GitHub Actions or `release.sh`. The required routing contract is:
 
-```bash
-sudo /home/mern/sweeple/deploy/switch-site.sh new     # this stack (127.0.0.1:5173)
-sudo /home/mern/sweeple/deploy/switch-site.sh old     # the pm2 app (127.0.0.1:3000)
-sudo /home/mern/sweeple/deploy/switch-site.sh status
-```
+- Client and asset requests go to the loopback client port configured by
+  `CLIENT_PORT` (example: `127.0.0.1:5173`).
+- `/api` requests go directly to the loopback backend port configured by
+  `BACKEND_PORT` (example: `127.0.0.1:3001`).
+- MongoDB remains reachable only on the internal Compose network.
 
-It writes the target to `/etc/nginx/conf.d/sweeple-app.conf`, runs `nginx -t`, and reloads nginx; it refuses to switch to a port that is not answering and restores the previous file if the config test fails.
-
-It needs a one-time nginx change first (agree it with the droplet owner): in the `sweeple.natreese.dev` HTTPS server block, change `proxy_pass http://localhost:3000;` to `proxy_pass http://sweeple_app;`, and make the `location ^~ /assets/` block `proxy_pass http://sweeple_app;` as well (nothing exists in `/var/www/html/assets`). Run `switch-site.sh old` once to create the upstream file before reloading.
+Confirm those upstream ports with the droplet owner whenever the GitHub
+variables change. The public workflow checks verify the effective HTTPS and
+routing configuration without changing it. The legacy `switch-site.sh` helper
+is not invoked by the current deployment workflow.
 
 The droplet has about 1 GB of RAM and no swap, so image builds during a deploy can run short of memory. A VS Code Remote-SSH session alone uses about 500 MB; disconnect it (or run "Remote-SSH: Kill VS Code Server on Host") before deploying.
 
@@ -112,13 +127,19 @@ Add these values as **environment secrets**:
 
 | Secret | Value | Example format |
 | --- | --- | --- |
-| `DROPLET_USER` | SSH user whose `authorized_keys` contains the deployment key | `mern` |
-| `DROPLET_APP_PATH` | Absolute checkout path, currently `/home/mern/sweeple` | `/home/mern/sweeple` |
+| `DROPLET_USER` | SSH user whose `authorized_keys` contains the deployment key | `deploy` |
+| `DROPLET_APP_PATH` | Absolute path to the repository checkout | `/srv/sweeple` |
 | `SSH_PRIVATE_KEY` | Complete multiline private key matching the deployment entry in `DROPLET_USER`'s `authorized_keys` | Begins with `-----BEGIN OPENSSH PRIVATE KEY-----` and ends with its matching `END` line |
 | `JWT_SECRET` | Required long, random JWT signing secret | 64 hexadecimal characters generated by `openssl rand -hex 32` |
 | `SMTP_PASS` | SMTP password or API token; required when `SMTP_USER` is set | Provider-issued token, or leave unset with `SMTP_USER` |
 | `OAUTH_GITHUB_CLIENT_SECRET` | Required GitHub OAuth client secret; mapped to `GITHUB_CLIENT_SECRET` for Compose | Provider-issued GitHub OAuth client secret |
 | `GOOGLE_CLIENT_SECRET` | Required Google OAuth client secret | `GOCSPX-...` |
+
+`DROPLET_USER` and `DROPLET_APP_PATH` are intentionally stored as GitHub
+environment **secrets**, and the workflow reads them through the `secrets`
+context. Do not create same-named Actions variables: they will not be used.
+Although these values are less sensitive than credentials, masking them avoids
+publishing deployment-account and filesystem-layout details in workflow logs.
 
 The workflow validates required values, complete OAuth credential pairs, HTTPS origins, ports, the full commit SHA, and basic SSH formatting before opening a connection. Errors report configuration names only, never values. Runtime values containing newlines are rejected so the generated Compose environment remains one assignment per line.
 
@@ -128,7 +149,7 @@ GitHub does not allow Actions variables or secrets whose names begin with `GITHU
 
 ## Troubleshooting
 
-- See the current release and environment identifier: `cd /home/mern/sweeple && cat .deploy/last-successful-release`.
+- See the current release and environment identifier: change to the path configured in the `DROPLET_APP_PATH` secret, then run `cat .deploy/last-successful-release`.
 - `Missing production environment configuration` means one or more required values are absent from the GitHub `production` environment. The message lists names only, never values.
 - `Missing protected runtime environment for rollback release` means saved rollback state no longer has its matching mode-`0600` environment file; repair that state before replacing containers.
 - `Host key verification failed` means the server did not present the public key stored in the `DROPLET_HOST_KEY` production environment variable. Verify whether the server was legitimately rebuilt or rekeyed before changing the variable.

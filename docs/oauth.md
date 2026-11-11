@@ -43,7 +43,8 @@ sequenceDiagram
 
 ## Setup
 
-Set these in `.env` (never commit the secrets), then run `docker compose up -d backend`:
+For local development, set these in `.env` (never commit the secrets), then
+run `docker compose -f compose.dev.yaml up -d backend`:
 
 ```bash
 GITHUB_CLIENT_ID=
@@ -53,6 +54,13 @@ GOOGLE_CLIENT_SECRET=
 ```
 
 The callback URLs are built from `APP_URL`, so they must match it exactly.
+Local providers are optional and are hidden unless both values in their pair
+are present. Production requires both complete provider pairs. Store GitHub's
+ID as the `OAUTH_GITHUB_CLIENT_ID` GitHub environment variable and its secret
+as `OAUTH_GITHUB_CLIENT_SECRET`; the workflow maps them to the application's
+names. Store Google's ID as `GOOGLE_CLIENT_ID` and its secret as
+`GOOGLE_CLIENT_SECRET`. Deployment validates all four values before connecting
+to the droplet.
 
 ### GitHub
 

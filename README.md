@@ -41,18 +41,24 @@ Copy the example environment file before starting the stack:
 cp .env.example .env
 ```
 
+This `.env` is for local development only. Production configuration comes from
+the GitHub `production` environment and is installed as a protected,
+release-specific file described in [deploy/README.md](deploy/README.md).
+
 | Variable | Default | Description |
 | --- | --- | --- |
+| `IMAGE_TAG` | `dev` | Development image tag; deployment overrides it with the exact commit SHA |
 | `CLIENT_PORT` | `5173` | Frontend port exposed on the host |
 | `BACKEND_PORT` | `3000` | Express port exposed on the host |
 | `MONGO_DATABASE` | `GameDB` | MongoDB database name |
-| `MONGO_PORT` | `27017` | MongoDB port exposed on `127.0.0.1` |
-| `JWT_SECRET` | placeholder | Secret for signing login tokens. Replace the example's placeholder with your own value (`openssl rand -hex 32`) so logins survive restarts. If empty, a random secret is used per run |
-| `APP_URL` | `http://localhost:5173` | Site address used in the links in emails |
+| `MONGO_PORT` | `27017` | Development-only MongoDB port exposed on `127.0.0.1`; production does not publish MongoDB |
+| `DOMAIN` | empty | Optional Vite development allowed-host setting; unused in production |
+| `JWT_SECRET` | placeholder | Secret for signing login tokens. Replace the local placeholder (`openssl rand -hex 32`); production requires a GitHub secret |
+| `APP_URL` | `http://localhost:5173` | Site address used in email links and OAuth callbacks; production requires the public HTTPS origin |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | empty, `587`, `false` | Outgoing mail server. With `SMTP_HOST` empty, emails are printed to the backend log |
 | `MAIL_FROM_NAME`, `MAIL_FROM_ADDRESS` | empty | Display name and address for verification and reset emails; both are required when `SMTP_HOST` is set |
-| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | empty | Turns on "Continue with GitHub" (see [docs/oauth.md](docs/oauth.md)) |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | empty | Turns on "Continue with Google" |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | empty | Optional complete pair locally; production requires both (see [docs/oauth.md](docs/oauth.md)) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | empty | Optional complete pair locally; production requires both |
 
 ## Running with Docker Compose
 
@@ -64,6 +70,15 @@ docker compose -f compose.dev.yaml up --build
 
 The client and server source directories are bind-mounted into their containers. Vite uses filesystem polling and the server uses Nodemon, so source changes should reload without rebuilding the images.
 
+`compose.dev.yaml` is the only Compose file intended for local development. It
+publishes the development ports, mounts source code, runs Vite and Nodemon, and
+loads both MongoDB initialization scripts, including sample data on a new
+volume. `compose.prod.yaml` is used by CI and deployment with an explicit
+protected environment file and immutable image tag. It has no source mounts,
+binds application ports to `127.0.0.1`, excludes sample seed data, and runs the
+compiled client with its minimal locked static-server runtime. Always pass the
+Compose filename explicitly so the environment cannot be selected by accident.
+
 ### Service URLs
 
 | Service | URL |
@@ -71,6 +86,7 @@ The client and server source directories are bind-mounted into their containers.
 | Client | <http://localhost:5173> |
 | Express server | <http://localhost:3000> |
 | Health endpoint | <http://localhost:3000/api/health> |
+| Readiness endpoint | <http://localhost:3000/api/health/ready> |
 | Health endpoint through Vite | <http://localhost:5173/api/health> |
 | MongoDB | `mongodb://127.0.0.1:27017/GameDB` |
 
@@ -188,7 +204,10 @@ The backend receives `MONGODB_URI` from Compose and connects with Mongoose. `bac
 
 MongoDB mounts `mongo/init/` at `/docker-entrypoint-initdb.d`. The official image runs supported initialization files only when it creates a new, empty database volume.
 
-`01-create-schema.js` creates the collections and unique indexes, and `02-seed-data.js` inserts sample data. See [mongo/README.md](mongo/README.md).
+Development mounts both initialization scripts: `01-create-schema.js` creates
+the collections and unique indexes, and `02-seed-data.js` inserts sample data.
+Production mounts only `01-create-schema.js`, so a new production database is
+empty. See [mongo/README.md](mongo/README.md).
 
 ## Continuous integration
 

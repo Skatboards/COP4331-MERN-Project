@@ -10,9 +10,9 @@ How to demonstrate the API for the COP 4331C **MERN Project Lab - API Role**. Th
 
 ## Before the lab
 
-1. **Deploy the API.** Merge the API work into `main`; the CI `deploy` job updates the droplet (see [deploy/README.md](../deploy/README.md)).
-2. **Set the droplet `.env`.** `JWT_SECRET` (output of `openssl rand -hex 32`) and `APP_URL=https://sweeple.natreese.dev`, then `docker compose up -d` in `/home/mern/sweeple`.
-3. **Serve it over HTTPS.** The rubric requires HTTPS, so the requests go through nginx at `https://sweeple.natreese.dev/api/...`. Run `sudo deploy/switch-site.sh new` on the droplet (after the one-time nginx change in the deploy guide). Port 5000 from the class demos is not needed: opening it would serve plain HTTP.
+1. **Configure deployment.** Set the required variables and secrets in the GitHub `production` environment, including `JWT_SECRET`, `APP_URL`, and both OAuth credential pairs. Do not create or edit a droplet `.env`; the workflow installs a protected release-specific environment (see [deploy/README.md](../deploy/README.md)).
+2. **Deploy the API.** Merge the API work into `main`; after CI passes, the deploy job checks out that exact tested commit and updates the droplet.
+3. **Use the existing HTTPS route.** The rubric requests go through the already managed host Nginx route at `https://sweeple.natreese.dev/api/...`. The client and backend ports remain loopback-only, and no host Nginx change is part of deployment. Port 5000 from the class demos is not needed.
 4. **Have a verified account for Login.** Login returns `403 EMAIL_NOT_VERIFIED` until the email link is opened. Either:
    - **Register in Bruno**, copy the verification token from the droplet logs, run **Verify Email** in Bruno (or open the link in a browser), then use that username for **Login**, or
    - Use an account you already verified and set `login` / `password` in the Bruno environment.
@@ -20,7 +20,11 @@ How to demonstrate the API for the COP 4331C **MERN Project Lab - API Role**. Th
    Without SMTP, find verification and reset links with:
 
    ```bash
-   docker compose logs backend | grep -E 'verify-email|reset-password'
+   cd /absolute/path/configured-in-DROPLET_APP_PATH
+   read -r IMAGE_TAG RUNTIME_ENV_ID < .deploy/last-successful-release
+   export IMAGE_TAG
+   docker compose --env-file ".deploy/environments/${RUNTIME_ENV_ID}.env" \
+     -f compose.prod.yaml logs backend | grep -E 'verify-email|reset-password'
    ```
 
 5. **Set up Bruno.** Open the [bruno/](../bruno/) folder as a collection. Choose **Production** for the lab (`https://sweeple.natreese.dev`) or **Local** for rehearsal (`http://localhost:5173`). Set:
@@ -47,7 +51,7 @@ How to demonstrate the API for the COP 4331C **MERN Project Lab - API Role**. Th
 
 ```bash
 ssh <user>@<droplet-ip>
-cd /home/mern/sweeple/backend
+cd /absolute/path/configured-in-DROPLET_APP_PATH/backend
 vi routes/auth.js
 ```
 
@@ -114,7 +118,7 @@ These requests are in the same [bruno/](../bruno/) collection for rehearsing the
 | Request | Expected |
 | --- | --- |
 | List Boards | `200`; may set `seed` from the first board |
-| Get Board | `200` for env `seed` (seed data includes `daily-2026-10-20`) |
+| Get Board | `200` for an existing env `seed`; the development seed data includes `daily-2026-10-20`, but production does not |
 | Board Attempts | `200` with finished games on that board |
 | Record Attempt | `201` after **Login**; uses a new board seed each run |
 | My Attempts | `200` for the logged-in user |
