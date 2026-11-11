@@ -201,7 +201,7 @@ The workflow in [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on pus
 - Confirms production starts with no sample records
 - Captures service logs on failure and cleans up the stack
 
-After every check passes on a push to `main`, the `deploy` job SSHes into the DigitalOcean droplet, resets its checkout to `main`, and rebuilds the backend and client sequentially with `compose.prod.yaml`. See [deploy/README.md](deploy/README.md) for droplet setup and the required repository secrets.
+After every check passes on a push to `main`, the deploy job checks out the exact tested commit on the DigitalOcean droplet and rebuilds the backend and client sequentially with `compose.prod.yaml`. It records the release only after a public HTTPS health check succeeds and rolls a failed replacement back to the previous SHA-tagged images and matching runtime configuration. See [deploy/README.md](deploy/README.md) for setup and the required GitHub production environment configuration.
 
 ## Troubleshooting
 

@@ -174,7 +174,7 @@ jobs:
     concurrency:
       group: production-deploy
       cancel-in-progress: false
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     env:
       DROPLET_HOST: ${{ vars.DROPLET_HOST }}
@@ -182,16 +182,39 @@ jobs:
       DROPLET_APP_PATH: ${{ secrets.DROPLET_APP_PATH }}
       # The droplet's public SSH host key, so the job only talks to that server
       DROPLET_HOST_KEY: ${{ vars.DROPLET_HOST_KEY }}
+      PUBLIC_URL: ${{ vars.PUBLIC_URL }}
       DEPLOY_SHA: ${{ github.sha }}
+      RUNTIME_ENV_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
 
     steps:
-      - name: Validate deployment configuration
+      - name: Validate configuration and create protected runtime environment
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          CLIENT_PORT: ${{ vars.CLIENT_PORT }}
+          BACKEND_PORT: ${{ vars.BACKEND_PORT }}
+          MONGO_DATABASE: ${{ vars.MONGO_DATABASE || 'GameDB' }}
+          APP_URL: ${{ vars.APP_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
+          SMTP_SECURE: ${{ vars.SMTP_SECURE || 'false' }}
+          SMTP_USER: ${{ vars.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_FROM: ${{ vars.MAIL_FROM || 'Sweeple <no-reply@localhost>' }}
+          GITHUB_CLIENT_ID: ${{ vars.OAUTH_GITHUB_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         run: |
           set -euo pipefail
           missing=()
-          for name in DROPLET_HOST DROPLET_USER DROPLET_APP_PATH DROPLET_HOST_KEY SSH_PRIVATE_KEY; do
+          required=(
+            DROPLET_HOST DROPLET_USER DROPLET_APP_PATH DROPLET_HOST_KEY
+            SSH_PRIVATE_KEY PUBLIC_URL CLIENT_PORT BACKEND_PORT APP_URL
+            JWT_SECRET GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET
+            GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
+          )
+          for name in "${required[@]}"; do
             if [ -z "${!name:-}" ]; then
               missing+=("$name")
             fi
@@ -200,6 +223,68 @@ jobs:
             printf 'Missing production environment configuration: %s\n' "${missing[*]}" >&2
             exit 1
           fi
+
+          invalid=()
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]] || invalid+=(DEPLOY_SHA)
+          [[ "$RUNTIME_ENV_ID" =~ ^[0-9a-f]{40}-[0-9]+-[0-9]+$ ]] || invalid+=(RUNTIME_ENV_ID)
+          [[ "$DROPLET_HOST" != *[[:space:]]* ]] || invalid+=(DROPLET_HOST)
+          [[ "$DROPLET_USER" =~ ^[A-Za-z_][A-Za-z0-9_.-]*$ ]] || invalid+=(DROPLET_USER)
+          [[ "$DROPLET_APP_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]] || invalid+=(DROPLET_APP_PATH)
+          [[ "$DROPLET_HOST_KEY" =~ ^[A-Za-z0-9@._+-]+[[:space:]][A-Za-z0-9+/=]+$ ]] || invalid+=(DROPLET_HOST_KEY)
+          [[ "$PUBLIC_URL" == https://* ]] || invalid+=(PUBLIC_URL)
+          [[ "$APP_URL" == https://* ]] || invalid+=(APP_URL)
+          if [[ "$CLIENT_PORT" =~ ^[0-9]+$ ]]; then
+            (( CLIENT_PORT >= 1 && CLIENT_PORT <= 65535 )) || invalid+=(CLIENT_PORT)
+          else
+            invalid+=(CLIENT_PORT)
+          fi
+          if [[ "$BACKEND_PORT" =~ ^[0-9]+$ ]]; then
+            (( BACKEND_PORT >= 1 && BACKEND_PORT <= 65535 )) || invalid+=(BACKEND_PORT)
+          else
+            invalid+=(BACKEND_PORT)
+          fi
+          if [[ "$SMTP_PORT" =~ ^[0-9]+$ ]]; then
+            (( SMTP_PORT >= 1 && SMTP_PORT <= 65535 )) || invalid+=(SMTP_PORT)
+          else
+            invalid+=(SMTP_PORT)
+          fi
+          [[ "$SMTP_SECURE" == true || "$SMTP_SECURE" == false ]] || invalid+=(SMTP_SECURE)
+          if [[ -n "$SMTP_USER" && -z "$SMTP_PASS" ]]; then
+            missing+=(SMTP_PASS)
+          elif [[ -n "$SMTP_PASS" && -z "$SMTP_USER" ]]; then
+            missing+=(SMTP_USER)
+          fi
+
+          runtime_names=(
+            PUBLIC_URL CLIENT_PORT BACKEND_PORT MONGO_DATABASE APP_URL JWT_SECRET
+            SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS MAIL_FROM
+            GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET
+            GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
+          )
+          for name in "${runtime_names[@]}"; do
+            value="${!name-}"
+            if [[ "$value" == *$'\n'* || "$value" == *$'\r'* ]]; then
+              invalid+=("$name")
+            fi
+          done
+          if [ "${#missing[@]}" -ne 0 ]; then
+            printf 'Missing production environment configuration: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+          if [ "${#invalid[@]}" -ne 0 ]; then
+            printf 'Invalid production environment configuration: %s\n' "${invalid[*]}" >&2
+            exit 1
+          fi
+
+          runtime_file="$RUNNER_TEMP/sweeple-production.env"
+          umask 077
+          : > "$runtime_file"
+          for name in "${runtime_names[@]}"; do
+            value="${!name-}"
+            value="${value//\'/\\\'}"
+            printf "%s='%s'\n" "$name" "$value" >> "$runtime_file"
+          done
+          chmod 600 "$runtime_file"
 
       - name: Configure SSH
         env:
@@ -210,24 +295,104 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           printf '%s %s\n' "$DROPLET_HOST" "$DROPLET_HOST_KEY" > ~/.ssh/known_hosts
 
-      - name: Pull main and rebuild the production stack
+      - name: Install protected runtime environment
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$DROPLET_USER@$DROPLET_HOST" \
+          set -euo pipefail
+          remote_directory="$DROPLET_APP_PATH/.deploy/environments"
+          remote_upload="$remote_directory/$RUNTIME_ENV_ID.env.$GITHUB_RUN_ID.upload"
+          remote_environment="$remote_directory/$RUNTIME_ENV_ID.env"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "$DROPLET_USER@$DROPLET_HOST" \
+            "install -d -m 700 '$DROPLET_APP_PATH/.deploy' '$remote_directory'"
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "$RUNNER_TEMP/sweeple-production.env" \
+            "$DROPLET_USER@$DROPLET_HOST:$remote_upload"
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "$DROPLET_USER@$DROPLET_HOST" \
             "set -e
-             cd '$DROPLET_APP_PATH'
-             git fetch --prune origin main
-             git reset --hard origin/main
-             export IMAGE_TAG='$DEPLOY_SHA'
-             docker compose -f compose.prod.yaml config --quiet
-             docker compose -f compose.prod.yaml build backend
-             docker compose -f compose.prod.yaml build client
-             docker compose -f compose.prod.yaml up -d --no-build --remove-orphans --wait --wait-timeout 300
-             docker image prune -f"
+             trap 'rm -f \"$remote_upload\" \"$remote_environment.tmp\"' EXIT
+             install -m 600 '$remote_upload' '$remote_environment.tmp'
+             mv -f '$remote_environment.tmp' '$remote_environment'"
 
-      - name: Check the deployed stack
+      - name: Deploy the exact tested release
+        id: deploy_release
         run: |
-          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "$DROPLET_USER@$DROPLET_HOST" \
-            "cd '$DROPLET_APP_PATH' && \
-             export IMAGE_TAG='$DEPLOY_SHA' && \
-             docker compose -f compose.prod.yaml exec -T backend node -e \
-               \"fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "$DROPLET_USER@$DROPLET_HOST" \
+            bash -s -- "$DROPLET_APP_PATH" "$DEPLOY_SHA" "$RUNTIME_ENV_ID" <<'REMOTE'
+          set -euo pipefail
+          app_path="$1"
+          deploy_sha="$2"
+          runtime_env_id="$3"
+          cd "$app_path"
+          git fetch --prune origin main
+          git cat-file -e "${deploy_sha}^{commit}"
+          git checkout --detach --force "$deploy_sha"
+          test "$(git rev-parse HEAD)" = "$deploy_sha"
+          bash deploy/release.sh deploy "$deploy_sha" "$runtime_env_id"
+          REMOTE
+
+      - name: Check the public HTTPS health endpoint
+        id: public_health
+        run: |
+          set -euo pipefail
+          public_url="${PUBLIC_URL%/}"
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --retry 10 \
+            --retry-all-errors \
+            --retry-delay 5 \
+            --retry-max-time 180 \
+            --connect-timeout 10 \
+            --max-time 20 \
+            "$public_url/api/health" |
+            jq --exit-status '.status == "ok"'
+
+      - name: Record the successful release and prune old cache
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "$DROPLET_USER@$DROPLET_HOST" \
+            "cd '$DROPLET_APP_PATH' && bash deploy/release.sh finalize '$DEPLOY_SHA' '$RUNTIME_ENV_ID'"
+
+      - name: Roll back after a failed replacement or public check
+        id: rollback
+        if: ${{ failure() && (steps.deploy_release.outcome == 'failure' || steps.public_health.outcome == 'failure') }}
+        run: |
+          set -euo pipefail
+          set +e
+          rollback_output="$(ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            "$DROPLET_USER@$DROPLET_HOST" \
+            "cd '$DROPLET_APP_PATH' && bash deploy/release.sh rollback '$DEPLOY_SHA' '$RUNTIME_ENV_ID'" 2>&1)"
+          rollback_status=$?
+          set -e
+          printf '%s\n' "$rollback_output"
+          if grep --quiet '^ROLLBACK_PERFORMED=true$' <<< "$rollback_output"; then
+            printf '%s\n' 'performed=true' >> "$GITHUB_OUTPUT"
+          else
+            printf '%s\n' 'performed=false' >> "$GITHUB_OUTPUT"
+          fi
+          exit "$rollback_status"
+
+      - name: Check public health after rollback
+        if: ${{ always() && steps.rollback.outputs.performed == 'true' }}
+        run: |
+          set -euo pipefail
+          public_url="${PUBLIC_URL%/}"
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --retry 10 \
+            --retry-all-errors \
+            --retry-delay 5 \
+            --retry-max-time 180 \
+            --connect-timeout 10 \
+            --max-time 20 \
+            "$public_url/api/health" |
+            jq --exit-status '.status == "ok"'
+
+      - name: Remove deployment credentials and temporary files
+        if: always()
+        run: rm -f ~/.ssh/deploy_key "$RUNNER_TEMP/sweeple-production.env"
