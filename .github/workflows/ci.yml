@@ -157,9 +157,12 @@ jobs:
               grep --quiet '<div id="root"></div>'
           done
 
-      - name: Test Express health endpoint
+      - name: Test backend health endpoints
         run: |
+          set -euo pipefail
           curl --fail --silent --show-error "http://localhost:${BACKEND_PORT}/api/health" |
+            jq --exit-status '.status == "ok"'
+          curl --fail --silent --show-error "http://localhost:${BACKEND_PORT}/api/health/ready" |
             jq --exit-status '.status == "ok"'
 
       - name: Test missing assets and cache headers
@@ -370,22 +373,38 @@ jobs:
           bash deploy/release.sh deploy "$deploy_sha" "$runtime_env_id"
           REMOTE
 
-      - name: Check the public HTTPS health endpoint
+      - name: Check public HTTPS routes and health endpoints
         id: public_health
         run: |
           set -euo pipefail
           public_url="${PUBLIC_URL%/}"
-          curl \
-            --fail \
-            --silent \
-            --show-error \
-            --retry 10 \
-            --retry-all-errors \
-            --retry-delay 5 \
-            --retry-max-time 180 \
-            --connect-timeout 10 \
-            --max-time 20 \
-            "$public_url/api/health" |
+          curl_args=(
+            --fail
+            --silent
+            --show-error
+            --retry 10
+            --retry-all-errors
+            --retry-delay 5
+            --retry-max-time 180
+            --connect-timeout 10
+            --max-time 20
+          )
+          client_routes=(
+            /
+            /play
+            /archive
+            /archive/daily-2026-10-20
+            /settings
+          )
+
+          for route in "${client_routes[@]}"; do
+            response="$(curl "${curl_args[@]}" "${public_url}${route}")"
+            grep --fixed-strings --quiet '<div id="root"></div>' <<< "$response"
+          done
+
+          curl "${curl_args[@]}" "$public_url/api/health" |
+            jq --exit-status '.status == "ok"'
+          curl "${curl_args[@]}" "$public_url/api/health/ready" |
             jq --exit-status '.status == "ok"'
 
       - name: Record the successful release and prune old cache
@@ -413,22 +432,38 @@ jobs:
           fi
           exit "$rollback_status"
 
-      - name: Check public health after rollback
+      - name: Check public routes and health after rollback
         if: ${{ always() && steps.rollback.outputs.performed == 'true' }}
         run: |
           set -euo pipefail
           public_url="${PUBLIC_URL%/}"
-          curl \
-            --fail \
-            --silent \
-            --show-error \
-            --retry 10 \
-            --retry-all-errors \
-            --retry-delay 5 \
-            --retry-max-time 180 \
-            --connect-timeout 10 \
-            --max-time 20 \
-            "$public_url/api/health" |
+          curl_args=(
+            --fail
+            --silent
+            --show-error
+            --retry 10
+            --retry-all-errors
+            --retry-delay 5
+            --retry-max-time 180
+            --connect-timeout 10
+            --max-time 20
+          )
+          client_routes=(
+            /
+            /play
+            /archive
+            /archive/daily-2026-10-20
+            /settings
+          )
+
+          for route in "${client_routes[@]}"; do
+            response="$(curl "${curl_args[@]}" "${public_url}${route}")"
+            grep --fixed-strings --quiet '<div id="root"></div>' <<< "$response"
+          done
+
+          curl "${curl_args[@]}" "$public_url/api/health" |
+            jq --exit-status '.status == "ok"'
+          curl "${curl_args[@]}" "$public_url/api/health/ready" |
             jq --exit-status '.status == "ok"'
 
       - name: Remove deployment credentials and temporary files
