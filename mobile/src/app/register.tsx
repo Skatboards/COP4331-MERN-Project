@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../constants/sweeple';
 import { useState } from 'react'
 import { register} from '../api/auth';
+import { router } from 'expo-router';
 
 
 export default function RegisterScreen() {
@@ -44,6 +45,19 @@ export default function RegisterScreen() {
 
         
     }
+    if( done ){
+        return(
+            <SafeAreaView style={styles.screen}>
+                <View style={styles.header}>
+                    <Text style={styles.title}>Check your email</Text>
+                    <Text style={styles.tagline}>{done}</Text>
+                </View>
+                <Pressable style = {styles.button} onPress={() => router.back()}>
+                    <Text style={styles.buttonText}>Back to sign in</Text>
+                </Pressable>
+            </SafeAreaView>
+        )
+    }
     return (
         <SafeAreaView style = {styles.screen}>
             <ScrollView keyboardShouldPersistTaps='handled' showsVerticalScrollIndicator={false}>
@@ -54,6 +68,7 @@ export default function RegisterScreen() {
             <View style={styles.form}>
                 <Text style={styles.label}>Username</Text>
                 <TextInput style = {styles.input} placeholder = "3-20 letters, numbers, or _"
+                placeholderTextColor= "#999a92"
                 autoCapitalize='none'
                 autoCorrect = {false}
                 value = {username}
@@ -61,6 +76,7 @@ export default function RegisterScreen() {
 
                 <Text style = {styles.label}>Email</Text>
                 <TextInput style = {styles.input} placeholder = "you@example.com"
+                placeholderTextColor= "#999a92"
                 autoCapitalize='none'
                 keyboardType = "email-address"
                 value = {email}
@@ -68,6 +84,7 @@ export default function RegisterScreen() {
 
                 <Text style = {styles.label}>Password</Text>
                 <TextInput style = {styles.input} placeholder="8+ characters"
+                placeholderTextColor= "#999a92"
                 secureTextEntry
                 value = {password}
                 onChangeText = {setPassword}/>
@@ -83,6 +100,11 @@ export default function RegisterScreen() {
                 <Pressable style = {styles.button}
                 onPress = {onRegister}>
                 <Text style={styles.buttonText}>Register</Text>
+                </Pressable>
+                <Pressable onPress={() => router.back()}>
+                    <Text style={styles.link}>
+                        Already have an account? <Text style={styles.linkStrong}>Sign in</Text>
+                    </Text>
                 </Pressable>
             </ScrollView>
         </SafeAreaView>
@@ -116,4 +138,6 @@ const styles = StyleSheet.create({
     },
     buttonText: {fontSize: 17, fontWeight: '700', color: colors.text},
     error: { color: colors.error, fontSize: 14, marginTop: 8},
+    link: { textAlign: 'center', marginTop: 16, fontSize: 14, color: colors.textSoft},
+    linkStrong: { color: colors.brandText, fontWeight: '700'},
 })
