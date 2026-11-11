@@ -8,4 +8,10 @@ export const colors = {
   brandText: '#58752b',
   lime: '#c9f36b',
   error: '#c94a43',
+  muted: "#83837c",
+  cell: '#e9ebe3',
+  cellBorder: '#d2d4ca',
+  cellShadow: '#d4d7cc',
+  surfaceTint: '#f1f5e8',
+  surfaceHover: '#f5f7f0'
 };
