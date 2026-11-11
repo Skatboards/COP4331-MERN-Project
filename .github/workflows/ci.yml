@@ -200,7 +200,8 @@ jobs:
           SMTP_SECURE: ${{ vars.SMTP_SECURE || 'false' }}
           SMTP_USER: ${{ vars.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          MAIL_FROM: ${{ vars.MAIL_FROM || 'Sweeple <no-reply@localhost>' }}
+          MAIL_FROM_NAME: ${{ vars.MAIL_FROM_NAME }}
+          MAIL_FROM_ADDRESS: ${{ vars.MAIL_FROM_ADDRESS }}
           GITHUB_CLIENT_ID: ${{ vars.OAUTH_GITHUB_CLIENT_ID }}
           GITHUB_CLIENT_SECRET: ${{ secrets.OAUTH_GITHUB_CLIENT_SECRET }}
           GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
@@ -254,10 +255,15 @@ jobs:
           elif [[ -n "$SMTP_PASS" && -z "$SMTP_USER" ]]; then
             missing+=(SMTP_USER)
           fi
+          if [[ -n "$SMTP_HOST" ]]; then
+            [[ -n "$MAIL_FROM_NAME" ]] || missing+=(MAIL_FROM_NAME)
+            [[ -n "$MAIL_FROM_ADDRESS" ]] || missing+=(MAIL_FROM_ADDRESS)
+          fi
 
           runtime_names=(
             PUBLIC_URL CLIENT_PORT BACKEND_PORT MONGO_DATABASE APP_URL JWT_SECRET
-            SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS MAIL_FROM
+            SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS
+            MAIL_FROM_NAME MAIL_FROM_ADDRESS
             GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET
             GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET
           )
