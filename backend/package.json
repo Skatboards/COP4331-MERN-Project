@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon ./server.js",
+    "dev:docker": "nodemon --legacy-watch --watch server.js --watch lib --watch middleware --watch models --watch routes --ext js,mjs,cjs,json ./server.js",
     "test": "node --test --test-concurrency=1",
     "set-role": "node scripts/set-role.js"
   },
