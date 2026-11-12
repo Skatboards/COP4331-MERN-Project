@@ -37,6 +37,27 @@ OAuth browser redirects (`GET /api/auth/github`, callbacks) are not in this coll
 | 17 | Leaderboard | No | `200` — env `leaderboardSort` |
 | 18 | Search Users | No | `200` — env `searchQuery` |
 
+## Admin requests (`Admin/` folder)
+
+These need an admin or site admin account (see [docs/admin.md](../docs/admin.md)). Set `adminLogin` and the secret `adminPassword`. While `adminLogin` is empty, every request in the folder is skipped, so a full run with a regular account still passes.
+
+| # | Request | Auth | Expected |
+| --- | --- | --- | --- |
+| 1 | Admin Login | No | `200`, role `admin` or `siteadmin`; saves `adminToken` |
+| 2 | List Users | Bearer (admin) | `200` with `users` and `total` |
+| 3 | Create User | Bearer (admin) | `201`: a new verified `bru########` user with no password; saves `adminUserId` |
+| 4 | Update User | Bearer (admin) | `200`; only `firstName` changes |
+| 5 | Send Password Reset | Bearer (admin) | `200`; the link is in the backend log when SMTP is off |
+| 6 | Delete User | Bearer (admin) | `200`; removes the account from step 3 |
+
+Run the folder on its own from the command line:
+
+```bash
+npx @usebruno/cli@4.3.0 run Admin --env Local \
+  --env-var adminLogin=ADMIN_USERNAME \
+  --env-var adminPassword=ADMIN_PASSWORD
+```
+
 ## Environment variables
 
 | Variable | Used for |
@@ -49,8 +70,12 @@ OAuth browser redirects (`GET /api/auth/github`, callbacks) are not in this coll
 | `seed` | Get Board, Board Attempts; updated by List Boards or Record Attempt |
 | `leaderboardSort` | `boardsCompleted`, `efficiency`, or `totalClicks` |
 | `searchQuery` | Search Users |
+| `adminLogin`, `adminPassword` (secret) | Admin folder; leave `adminLogin` empty to skip it |
 
-Default `seed` in the environment files matches a board from Mongo seed data (`daily-2026-10-20`). Today's playable seed in the client is `daily-YYYY-MM-DD` for the current date.
+The Local environment's default `seed` matches development-only sample data
+(`daily-2026-10-20`). Production intentionally starts without sample boards,
+so production checks and Bruno flows must not assume that seed exists. Today's
+playable seed in the client is `daily-YYYY-MM-DD` for the current date.
 
 ## Setup
 
@@ -60,7 +85,7 @@ Default `seed` in the environment files matches a board from Mongo seed data (`d
 2. **Open Collection** → choose this repo's `bruno/` folder (the one that contains `bruno.json`).
 3. In the collection sidebar, open **Environments** → select **Local** (not Production) while Docker Compose is running on your machine.
 4. Edit **Local**: set `login`, `email`, `seed`, and so on; mark `password`, `verifyToken`, and `resetToken` as **secret** in the environment UI (they match `vars:secret` in `environments/Local.bru`).
-5. Start the stack from the repo root: `docker compose up -d` (API via `http://localhost:5173/api/...` through the Vite proxy, same as the browser).
+5. Start the development stack from the repo root: `docker compose -f compose.dev.yaml up -d` (API via `http://localhost:5173/api/...` through the Vite proxy, same as the browser).
 6. Run requests from the sidebar; tests show pass/fail in the extension. **Login** saves `token` in the collection environment for Bearer requests (**Get My Profile**, **Record Attempt**, **My Attempts**).
 
 The extension, desktop Bruno app, and CLI all use the same `.bru` files and `environments/*.bru` files—nothing extra is required for VS Code.
@@ -71,7 +96,7 @@ The extension, desktop Bruno app, and CLI all use the same `.bru` files and `env
 2. Pick the **Production** (`https://sweeple.natreese.dev`) or **Local** (`http://localhost:5173`) environment.
 3. Set `login` and secret `password` for **Login** (account must be verified).
 4. Set `email` for resend / forgot flows (often the same as the account email).
-5. After **Register**, copy the verify token from `docker compose logs backend` into secret `verifyToken` before **Verify Email** and **Login**.
+5. After **Register**, copy the verify token from `docker compose -f compose.dev.yaml logs backend` into secret `verifyToken` before **Verify Email** and **Login**.
 
 ## Suggested flows
 

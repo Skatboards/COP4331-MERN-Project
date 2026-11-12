@@ -33,6 +33,10 @@ gameDb.users.createIndex(
   { unique: true, partialFilterExpression: { oauthAccounts: { $exists: true } } }
 );
 
+// Not unique: lets the admin dashboard filter accounts by role
+// ('user', 'admin', 'siteadmin'; see docs/admin.md)
+gameDb.users.createIndex({ role: 1 });
+
 gameDb.boards.createIndex(
   { seed: 1 },
   { unique: true }

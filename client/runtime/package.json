@@ -1,0 +1,11 @@
+{
+  "name": "sweeple-client-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "serve": "14.2.7"
+  },
+  "overrides": {
+    "compression": "1.8.2"
+  }
+}

@@ -1,0 +1,46 @@
+meta {
+  name: Admin Login
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "login": "{{adminLogin}}",
+    "password": "{{adminPassword}}"
+  }
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("adminLogin")) {
+    bru.runner.skipRequest();
+  }
+}
+
+script:post-response {
+  // Kept apart from `token` so player requests keep using the player account
+  if (res.getStatus() === 200) {
+    bru.setVar("adminToken", res.getBody().token);
+  }
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("the account is an admin or site admin", function () {
+    expect(res.getBody().user.role).to.be.oneOf(["admin", "siteadmin"]);
+  });
+}
+
+docs {
+  Logs in with `adminLogin` and the secret `adminPassword`. Make an account an
+  admin with `npm run set-role -- <username> admin` or SITE_ADMIN_EMAILS.
+}

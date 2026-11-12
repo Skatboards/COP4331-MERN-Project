@@ -5,14 +5,15 @@ Diagrams are written in [Mermaid](https://mermaid.js.org/) and render directly o
 | Document | Contents |
 | --- | --- |
 | [system-design.md](system-design.md) | Deployment overview, containers, backend modules, CI/CD |
-| [data-flow.md](data-flow.md) | Sign up and email verification, login, recording a game, password reset, reading stats |
-| [erd.md](erd.md) | Database entities, relationships, and indexes |
+| [data-flow.md](data-flow.md) | Sign up and email verification, login, recording a game, password reset, reading stats, admin actions |
+| [erd.md](erd.md) | Database entities, relationships, indexes, and roles |
 | [oauth.md](oauth.md) | Sign in with GitHub and Google: flow, setup, account linking |
+| [admin.md](admin.md) | Roles, permission matrix, making the first site admin, admin dashboard and API |
 | [api-lab-demo.md](api-lab-demo.md) | How to demonstrate the API for the API Role lab |
 
 Related:
 
 - [backend/openapi.yaml](../backend/openapi.yaml): API description for SwaggerHub
-- [bruno/](../bruno/): Bruno collection for auth, boards, and users (see [bruno/README.md](../bruno/README.md))
+- [bruno/](../bruno/): Bruno collection for auth, boards, users, and admin (see [bruno/README.md](../bruno/README.md))
 - [deploy/README.md](../deploy/README.md): droplet deployment
 - [mongo/README.md](../mongo/README.md): database initialization

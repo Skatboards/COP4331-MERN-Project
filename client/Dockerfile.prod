@@ -1,0 +1,29 @@
+FROM node:24-alpine AS build
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY index.html ./index.html
+COPY tsconfig.app.json tsconfig.json tsconfig.node.json vite.config.ts ./
+COPY src ./src
+
+RUN npm run build
+
+FROM node:24-alpine AS runtime
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+COPY runtime/package.json runtime/package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --chown=node:node serve.json ./serve.json
+COPY --from=build --chown=node:node /app/dist ./dist
+
+USER node
+
+EXPOSE 5173
+
+CMD ["./node_modules/.bin/serve", "--config", "/app/serve.json", "--listen", "tcp://0.0.0.0:5173", "dist"]

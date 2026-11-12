@@ -1,17 +1,12 @@
 services:
   client:
+    image: sweeple-client:${IMAGE_TAG:?Set IMAGE_TAG to an immutable release identifier}
     build:
       context: ./client
+      dockerfile: Dockerfile.prod
     restart: unless-stopped
-    environment:
-      DOMAIN: ${DOMAIN:-}
     ports:
-      - "${CLIENT_PORT:-5173}:5173"
-    volumes:
-      - ./client:/app
-      # Keeps the image's installed packages instead of the host's; recreated
-      # with `docker compose up -V` when dependencies change
-      - /app/node_modules
+      - "127.0.0.1:${CLIENT_PORT:?Set CLIENT_PORT}:5173"
     depends_on:
       backend:
         condition: service_healthy
@@ -25,35 +20,38 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
   backend:
+    image: sweeple-backend:${IMAGE_TAG:?Set IMAGE_TAG to an immutable release identifier}
     build:
       context: ./backend
+      dockerfile: Dockerfile.prod
     restart: unless-stopped
     environment:
       PORT: 3000
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DATABASE:-GameDB}
-      # Login tokens; without it a random secret is used and logins reset on restart
-      JWT_SECRET: ${JWT_SECRET:-}
-      # Site address used in the links in verification and reset emails
-      APP_URL: ${APP_URL:-http://localhost:5173}
-      # Without SMTP_HOST, emails are printed to the backend log instead of sent
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      SITE_ADMIN_EMAILS: ${SITE_ADMIN_EMAILS:-}
+      APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_SECURE: ${SMTP_SECURE:-false}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
-      MAIL_FROM: ${MAIL_FROM:-Sweeple <no-reply@localhost>}
-      # Sign in with GitHub and Google; a provider without both values is off
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME}
+      MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     ports:
-      - "${BACKEND_PORT:-3000}:3000"
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+      - "127.0.0.1:${BACKEND_PORT:?Set BACKEND_PORT}:3000"
     depends_on:
       mongo:
         condition: service_healthy
@@ -62,28 +60,36 @@ services:
         - CMD
         - node
         - -e
-        - fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+        - fetch('http://127.0.0.1:3000/api/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
   mongo:
     image: mongo:7.0.45
     restart: unless-stopped
     environment:
       MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-GameDB}
-    ports:
-      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
     volumes:
       - mongo_data:/data/db
-      - ./mongo/init:/docker-entrypoint-initdb.d:ro
+      - ./mongo/init/01-create-schema.js:/docker-entrypoint-initdb.d/01-create-schema.js:ro
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
 volumes:
   mongo_data:

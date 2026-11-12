@@ -1,0 +1,44 @@
+meta {
+  name: Update User
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/admin/users/{{adminUserId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "firstName": "Renamed"
+  }
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("adminLogin")) {
+    bru.runner.skipRequest();
+  }
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("changes only the sent field", function () {
+    const user = res.getBody().user;
+    expect(user.firstName).to.equal("Renamed");
+    expect(user.lastName).to.equal("Created");
+  });
+}
+
+docs {
+  Edits the account from Create User. Also accepts `lastName`, `username`,
+  `email`, `emailVerified`, and `role` (site admins: `user` or `admin`).
+}

@@ -1,6 +1,7 @@
 
 const mongoose = require('mongoose');
 const { PROVIDERS } = require('../lib/oauth');
+const { ROLES } = require('../lib/roles');
 
 const userSchema = new mongoose.Schema(
   {
@@ -49,6 +50,15 @@ const userSchema = new mongoose.Schema(
         }
       ],
       default: undefined
+    },
+
+    // What the user may do on the admin dashboard (see lib/roles.js).
+    // "siteadmin" is only granted by SITE_ADMIN_EMAILS or scripts/set-role.js.
+    role: {
+      type: String,
+      enum: ROLES,
+      default: 'user',
+      index: true
     },
 
     // Set to true once the user follows the link in the verification email

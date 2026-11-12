@@ -3,6 +3,7 @@ const express = require('express');
 const { User } = require('../models');
 const { signLoginToken } = require('../lib/tokens');
 const { APP_URL } = require('../lib/email');
+const { roleForEmail } = require('../lib/bootstrapAdmins');
 const {
   PROVIDERS,
   isEnabled,
@@ -108,6 +109,11 @@ async function findOrCreateUserOnce(provider, profile) {
       existing.passwordResetExpires = null;
     }
     existing.oauthAccounts = [...(existing.oauthAccounts || []), account];
+    // The address is now verified, so a listed site admin is promoted now
+    // rather than at the next server start
+    if (roleForEmail(existing.email) === 'siteadmin') {
+      existing.role = 'siteadmin';
+    }
     // The provider has confirmed the address
     existing.emailVerified = true;
     existing.emailVerificationTokenHash = null;
@@ -122,6 +128,7 @@ async function findOrCreateUserOnce(provider, profile) {
     username: await availableUsername(profile.suggestedUsername),
     email: profile.email,
     emailVerified: true,
+    role: roleForEmail(profile.email),
     oauthAccounts: [account]
   });
 }
