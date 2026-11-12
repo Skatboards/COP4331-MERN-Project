@@ -10,5 +10,7 @@
 !models/**
 !routes/
 !routes/**
+!scripts/
+!scripts/set-role.js
 !tests/
 !tests/**

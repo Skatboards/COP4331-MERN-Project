@@ -160,7 +160,7 @@ npm run set-role -- <username or email> <user|admin|siteadmin>
 
 `npm test` runs the API tests in `backend/tests/` (at least one per endpoint) against a temporary in-memory MongoDB 7.0. It needs no running database; the first run downloads the MongoDB binary.
 
-`npm run set-role` changes an account's role in the database at `MONGODB_URI`; in Compose, run `docker compose exec backend npm run set-role -- alexrivera siteadmin`. See [docs/admin.md](docs/admin.md).
+`npm run set-role` changes an account's role in the database at `MONGODB_URI`; in local Compose, run `docker compose -f compose.dev.yaml exec backend npm run set-role -- alexrivera siteadmin`. See [docs/admin.md](docs/admin.md).
 
 ### Bruno (API requests)
 
@@ -277,6 +277,8 @@ docker compose -f compose.dev.yaml logs backend
 `JWT_SECRET` is empty, so the backend made a new random secret at startup and old tokens no longer verify. Set it in `.env` and run `docker compose up -d backend`.
 
 ### How do I become a site admin?
+
+Add your account's email to `SITE_ADMIN_EMAILS` in `.env` and restart the backend (`docker compose -f compose.dev.yaml up -d backend`). Your email must be verified. Or run `docker compose -f compose.dev.yaml exec backend npm run set-role -- <your username> siteadmin`. Sign out and back in (or reload) to see the **Admin** link. Details: [docs/admin.md](docs/admin.md).
 
 Add your account's email to `SITE_ADMIN_EMAILS` in `.env` and restart the backend (`docker compose up -d backend`). Your email must be verified. Or run `docker compose exec backend npm run set-role -- <your username> siteadmin`. Sign out and back in (or reload) to see the **Admin** link. Details: [docs/admin.md](docs/admin.md).
 `JWT_SECRET` is empty, so the backend made a new random secret at startup and old tokens no longer verify. Set it in `.env` and run `docker compose -f compose.dev.yaml up -d backend`.

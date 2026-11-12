@@ -9,7 +9,7 @@ git checkout --detach --force "$DEPLOY_SHA"
 bash deploy/release.sh deploy "$DEPLOY_SHA" "$RUNTIME_ENV_ID"
 ```
 
-[`release.sh`](release.sh) validates the production configuration, builds the backend and then the client sequentially, records disk and memory diagnostics, and starts the prebuilt images with `--no-build --wait`. Production has no source or `node_modules` mounts; the named `mongo_data` volume is retained.
+[`release.sh`](release.sh) validates the production configuration, builds the backend and then the client sequentially, records disk and memory diagnostics, and starts the prebuilt images with `--no-build --wait`. GNU `timeout` (provided by `coreutils` on Ubuntu) bounds both deployment and rollback startup waits to 300 seconds, allowing the host's Docker Compose v2.6 to be used without `--wait-timeout`. Production has no source or `node_modules` mounts; the named `mongo_data` volume is retained.
 
 CI uses Buildx with separate GitHub Actions cache scopes for each development
 and production image. Those remote CI caches speed up repeated workflow builds
@@ -26,7 +26,7 @@ TLS and routes client paths to `127.0.0.1:${CLIENT_PORT}` and `/api` directly to
 `127.0.0.1:${BACKEND_PORT}`.
 
 The GitHub-hosted runner checks `/`, `/play`, `/archive`,
-`/archive/daily-2026-10-20`, and `/settings` at `PUBLIC_URL` over HTTPS and
+`/archive/daily-2026-10-20`, `/settings`, and `/admin` at `PUBLIC_URL` over HTTPS and
 requires the client application marker in every response. It also validates
 the JSON returned by `/api/health` and `/api/health/ready`; the latter returns
 generic readiness after a bounded MongoDB ping and caches the result for five
@@ -52,6 +52,25 @@ The workflow creates a release-specific Compose environment from the GitHub `pro
 Compose always receives the appropriate file through `--env-file`. The state records both the Git commit and its runtime-environment identifier, so rollback restores matching code, images, and configuration—even when the same commit is redeployed with changed settings. `.deploy/` is ignored by Git and must never be committed, logged, cached, or uploaded as an artifact.
 
 If a build fails before replacement starts, the running stack remains unchanged and the checkout returns to the running release. If startup or any public HTTPS check fails after replacement starts, the workflow captures status and recent logs, checks out the previous successful SHA, recreates its images with `--no-build --wait`, and repeats the complete public route and health check set. A first deployment has no rollback target, so a failure preserves diagnostic state for manual recovery.
+
+### Manage a production role
+
+The production backend image includes the allowlisted `set-role` maintenance
+script. From `DROPLET_APP_PATH`, load the active release/configuration pair and
+run it against the existing backend container:
+
+```bash
+read -r IMAGE_TAG RUNTIME_ENV_ID < .deploy/last-successful-release
+export IMAGE_TAG
+docker compose \
+  --env-file ".deploy/environments/${RUNTIME_ENV_ID}.env" \
+  -f compose.prod.yaml \
+  exec backend npm run set-role -- alexrivera siteadmin
+```
+
+This changes the live production database. Restrict the command to authorized
+operators and record the role change through the project's operational audit
+process.
 
 ## Droplet layout
 
