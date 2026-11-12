@@ -61,8 +61,8 @@ release-specific file described in [deploy/README.md](deploy/README.md).
 | `APP_URL` | `http://localhost:5173` | Site address used in email links and OAuth callbacks; production requires the public HTTPS origin |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | empty, `587`, `false` | Outgoing mail server. With `SMTP_HOST` empty, emails are printed to the backend log |
 | `MAIL_FROM_NAME`, `MAIL_FROM_ADDRESS` | empty | Display name and address for verification and reset emails; both are required when `SMTP_HOST` is set |
-| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | empty | Optional complete pair locally; production requires both (see [docs/oauth.md](docs/oauth.md)) |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | empty | Optional complete pair locally; production requires both |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | empty | Optional complete pair in development and production; the provider is hidden when both are empty (see [docs/oauth.md](docs/oauth.md)) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | empty | Optional complete pair in development and production; the provider is hidden when both are empty |
 
 ## Running with Docker Compose
 
