@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../constants/sweeple';
 import { login } from '../api/auth'
 import { Link } from 'expo-router';
+import { router } from 'expo-router';
 
 export default function SignInScreen() {
   const [loginName, setLoginName] = useState('');
@@ -26,10 +27,12 @@ export default function SignInScreen() {
   } 
   return (
     <SafeAreaView style={styles.screen}>
+      <Pressable onPress={() => router.back()} style = {styles.back}>
+           <Text style = {styles.backText}>← Back</Text>
+         </Pressable>
       <View style = {styles.header}>
         <Text style = {styles.wordmark}>
-          {/*The sweeple title centered with the dot, inspiration taken from
-          the front end */}
+          {/* sweeple title */}
           sweeple<Text style={{ color: colors.brand}}>.</Text>
         </Text>
       </View>
@@ -101,4 +104,6 @@ const styles = StyleSheet.create({
   welcome: {color: colors.brandText, fontSize: 14, fontWeight: '600', marginTop: 8},
   Link: { textAlign: 'center', marginTop: 16, fontSize: 14, color: colors.textSoft},
   linkStrong: { color: colors.brandText, fontWeight: '700'},
+  backText: { fontSize: 15, fontWeight: '600', color: colors.brandText},
+  back: {alignSelf: 'flex-start', paddingVertical: 8, marginTop: 8},
 });

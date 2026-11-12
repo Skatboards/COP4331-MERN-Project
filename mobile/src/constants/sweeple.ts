@@ -15,3 +15,15 @@ export const colors = {
   surfaceTint: '#f1f5e8',
   surfaceHover: '#f5f7f0'
 };
+
+export const numberColors = [
+  '',
+  '#376db8',
+  '#347a49',
+  '#b83f38',
+  '#6150a6',
+  '#99531d',
+  '#26767a',
+  '#252522',
+  '#83837c',
+];
