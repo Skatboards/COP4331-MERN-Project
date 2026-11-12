@@ -116,6 +116,7 @@ Add these non-sensitive values as **environment variables**:
 | `BACKEND_PORT` | Required host Nginx upstream port for `/api` | `3001` |
 | `MONGO_DATABASE` | MongoDB database name; defaults to `GameDB` | `GameDB` |
 | `JWT_EXPIRES_IN` | Login-token lifetime accepted by `jsonwebtoken`; defaults to `1d` when omitted | `1d` |
+| `SITE_ADMIN_EMAILS` | Optional comma-separated verified account emails promoted to `siteadmin`; removing an address does not demote the account | `owner@example.com` |
 | `SMTP_HOST` | Optional SMTP host | `smtp.provider.example` or leave unset |
 | `SMTP_PORT` | Optional SMTP port; defaults to `587` | `2525` |
 | `SMTP_SECURE` | Optional `true` or `false`; defaults to `false` | `false` |
