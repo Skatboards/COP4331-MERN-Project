@@ -54,13 +54,14 @@ GOOGLE_CLIENT_SECRET=
 ```
 
 The callback URLs are built from `APP_URL`, so they must match it exactly.
-Local providers are optional and are hidden unless both values in their pair
-are present. Production requires both complete provider pairs. Store GitHub's
-ID as the `OAUTH_GITHUB_CLIENT_ID` GitHub environment variable and its secret
-as `OAUTH_GITHUB_CLIENT_SECRET`; the workflow maps them to the application's
-names. Store Google's ID as `GOOGLE_CLIENT_ID` and its secret as
-`GOOGLE_CLIENT_SECRET`. Deployment validates all four values before connecting
-to the droplet.
+Each provider is optional in development and production and is hidden unless
+both values in its pair are present. When enabling GitHub, store its ID as the
+`OAUTH_GITHUB_CLIENT_ID` GitHub environment variable and its secret as
+`OAUTH_GITHUB_CLIENT_SECRET`; the workflow maps them to the application's
+names. When enabling Google, store its ID as `GOOGLE_CLIENT_ID` and its secret
+as `GOOGLE_CLIENT_SECRET`. Deployment permits either complete pair to be empty,
+but rejects a provider configuration containing only an ID or only a secret
+before connecting to the droplet.
 
 ### GitHub
 
