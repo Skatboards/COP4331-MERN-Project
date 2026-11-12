@@ -60,6 +60,7 @@ If a build fails before replacement starts, the running stack remains unchanged 
 - The production client and backend ports are bound to `127.0.0.1` by `compose.prod.yaml`, and MongoDB is not published to the host.
 - `APP_URL` is used in verification links, password-reset links, and OAuth callbacks.
 - `JWT_SECRET` signs login tokens and is required by the production configuration.
+- `JWT_EXPIRES_IN` controls the login-token lifetime and defaults to `1d`.
 - Before deployment, verify that the separately managed host Nginx upstreams match the `CLIENT_PORT` and `BACKEND_PORT` production variables. The workflow does not edit or reload Nginx.
 
 ## Email
@@ -114,6 +115,7 @@ Add these non-sensitive values as **environment variables**:
 | `CLIENT_PORT` | Required host Nginx upstream port for the client | `5173` |
 | `BACKEND_PORT` | Required host Nginx upstream port for `/api` | `3001` |
 | `MONGO_DATABASE` | MongoDB database name; defaults to `GameDB` | `GameDB` |
+| `JWT_EXPIRES_IN` | Login-token lifetime accepted by `jsonwebtoken`; defaults to `1d` when omitted | `1d` |
 | `SMTP_HOST` | Optional SMTP host | `smtp.provider.example` or leave unset |
 | `SMTP_PORT` | Optional SMTP port; defaults to `587` | `2525` |
 | `SMTP_SECURE` | Optional `true` or `false`; defaults to `false` | `false` |
