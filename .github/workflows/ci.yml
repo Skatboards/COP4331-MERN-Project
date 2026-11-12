@@ -87,6 +87,7 @@ jobs:
       APP_URL: http://localhost:5173
       JWT_SECRET: ci-only-jwt-secret-not-for-production
       JWT_EXPIRES_IN: 1d
+      SITE_ADMIN_EMAILS: ci-admin@example.invalid
       GITHUB_CLIENT_ID: ci-github-client-id
       GITHUB_CLIENT_SECRET: ci-github-client-secret
       GOOGLE_CLIENT_ID: ci-google-client-id
@@ -153,7 +154,7 @@ jobs:
       - name: Test production client routes
         run: |
           set -euo pipefail
-          for route in / /play /archive /archive/daily-2026-10-20 /settings; do
+          for route in / /play /archive /archive/daily-2026-10-20 /settings /admin; do
             curl --fail --silent --show-error "http://localhost:${CLIENT_PORT}${route}" |
               grep --quiet '<div id="root"></div>'
           done
@@ -188,6 +189,10 @@ jobs:
         run: |
           set -euo pipefail
           test "$(docker compose -f compose.prod.yaml exec -T client id -u)" != 0
+          actual_site_admin_emails="$(
+            docker compose -f compose.prod.yaml exec -T backend printenv SITE_ADMIN_EMAILS
+          )"
+          test "$actual_site_admin_emails" = "$SITE_ADMIN_EMAILS"
           docker compose -f compose.prod.yaml exec -T mongo \
             mongosh --quiet "$MONGO_DATABASE" --eval \
             'const total = db.users.countDocuments({}) + db.boards.countDocuments({}) + db.boardAttempts.countDocuments({}); if (total !== 0) { quit(1); }'
@@ -232,6 +237,7 @@ jobs:
           APP_URL: ${{ vars.APP_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           JWT_EXPIRES_IN: ${{ vars.JWT_EXPIRES_IN || '1d' }}
+          SITE_ADMIN_EMAILS: ${{ vars.SITE_ADMIN_EMAILS }}
           SMTP_HOST: ${{ vars.SMTP_HOST }}
           SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
           SMTP_SECURE: ${{ vars.SMTP_SECURE || 'false' }}
@@ -299,7 +305,7 @@ jobs:
 
           runtime_names=(
             PUBLIC_URL CLIENT_PORT BACKEND_PORT MONGO_DATABASE APP_URL
-            JWT_SECRET JWT_EXPIRES_IN
+            JWT_SECRET JWT_EXPIRES_IN SITE_ADMIN_EMAILS
             SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS
             MAIL_FROM_NAME MAIL_FROM_ADDRESS
             GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET
@@ -398,6 +404,7 @@ jobs:
             /archive
             /archive/daily-2026-10-20
             /settings
+            /admin
           )
 
           for route in "${client_routes[@]}"; do
@@ -457,6 +464,7 @@ jobs:
             /archive
             /archive/daily-2026-10-20
             /settings
+            /admin
           )
 
           for route in "${client_routes[@]}"; do

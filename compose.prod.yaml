@@ -37,6 +37,7 @@ services:
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DATABASE:-GameDB}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      SITE_ADMIN_EMAILS: ${SITE_ADMIN_EMAILS:-}
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
