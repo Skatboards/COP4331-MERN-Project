@@ -12,6 +12,12 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const PasswordResetPage = lazy(() => import('./pages/PasswordResetPage'));
 const HelpDialog = lazy(() => import('./components/HelpDialog'));
 const SignInDialog = lazy(() => import('./components/SignInDialog'));
+const DevComponentsPage = import.meta.env.DEV
+  ? lazy(() => import('./pages/dev/DevComponentsPage'))
+  : null;
+const DevColorsPage = import.meta.env.DEV
+  ? lazy(() => import('./pages/dev/DevColorsPage'))
+  : null;
 
 const OAUTH_ERRORS: Record<string, string> = {
   cancelled: 'Sign-in was cancelled.',
@@ -117,6 +123,12 @@ export default function App() {
           <Route path="/archive/:seed" element={<ArchiveBoardPage />} />
           <Route path="/settings" element={<SettingsPage onSignIn={openSignIn} highContrast={highContrast} onHighContrastChange={setHighContrast} />} />
           <Route path="/reset-password" element={<PasswordResetPage />} />
+          {import.meta.env.DEV && DevComponentsPage && DevColorsPage && (
+            <>
+              <Route path="/dev/components" element={<DevComponentsPage />} />
+              <Route path="/dev/colors" element={<DevColorsPage />} />
+            </>
+          )}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
