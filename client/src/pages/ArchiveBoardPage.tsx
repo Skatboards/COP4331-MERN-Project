@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { getBoardLayout } from '../api/boards';
 import Board from '../components/Minesweeper/Board';
-import { generateBoard } from '../game/minesweeper';
+import type { Board as BoardData } from '../game/minesweeper';
 import type { GameState } from '../game/state';
 
 const validSeed = (seed: string | undefined): seed is string =>
@@ -23,8 +24,27 @@ export default function ArchiveBoardPage() {
   const { seed: routeSeed } = useParams();
   const isValid = validSeed(routeSeed);
   const seed = isValid ? routeSeed : 'invalid-seed';
-  const board = useMemo(() => generateBoard(seed), [seed]);
-  const game = useMemo<GameState>(() => ({
+  const [loaded, setLoaded] = useState<{ seed: string; board: BoardData | null; error: string } | null>(null);
+
+  useEffect(() => {
+    if (!isValid) return;
+    let active = true;
+    getBoardLayout(seed)
+      .then(({ board }) => { if (active) setLoaded({ seed, board, error: '' }); })
+      .catch((requestError: unknown) => {
+        if (!active) return;
+        setLoaded({
+          seed,
+          board: null,
+          error: requestError instanceof Error ? requestError.message : 'Could not load this board.',
+        });
+      });
+    return () => { active = false; };
+  }, [isValid, seed]);
+
+  const current = loaded?.seed === seed ? loaded : null;
+  const board = current?.board ?? null;
+  const game = useMemo<GameState | null>(() => board && {
     seed,
     revealed: Array.from({ length: board.rows * board.cols }, (_, index) => index)
       .filter((index) => !board.isMine[index]),
@@ -32,13 +52,24 @@ export default function ArchiveBoardPage() {
     clicks: 0,
     status: 'lost',
     explodedAt: null,
-  }), [board, seed]);
+  }, [board, seed]);
 
   if (!isValid) {
     return (
       <main className="subpage">
         <section className="empty-state archive-board-error">
           <p>This archive board could not be found.</p>
+          <Link className="text-button" to="/archive">Back to archive</Link>
+        </section>
+      </main>
+    );
+  }
+
+  if (!board || !game) {
+    return (
+      <main className="subpage">
+        <section className="empty-state archive-board-error">
+          <p role="status">{current ? current.error : 'Loading this board…'}</p>
           <Link className="text-button" to="/archive">Back to archive</Link>
         </section>
       </main>

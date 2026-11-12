@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateBoard, neighbors, ROWS, COLS } from '../src/game/minesweeper.ts';
+import { neighbors, ROWS, COLS } from '../src/game/minesweeper.ts';
+import { generateBoard } from './fixtures.ts';
 import { chordCell, newGame, revealCell, type GameState } from '../src/game/state.ts';
 
 const CELLS = ROWS * COLS;

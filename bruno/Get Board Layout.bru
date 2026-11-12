@@ -1,0 +1,28 @@
+meta {
+  name: Get Board Layout
+  type: http
+  seq: 20
+}
+
+get {
+  url: {{baseUrl}}/api/boards/{{seed}}/layout
+  body: none
+  auth: none
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("returns the requested seed", function () {
+    expect(res.getBody().seed).to.equal(bru.getVar("seed"));
+    expect(res.getBody().mines).to.have.lengthOf(res.getBody().mineCount);
+  });
+}
+
+docs {
+  Layout of today's or an earlier day's board. Uses env `seed` (for example
+  `daily-2026-10-20`). Returns 404 for a day after today or a seed that is not a
+  real date.
+}
