@@ -2,6 +2,7 @@ const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const { app, request, useTestDatabase, createLoggedInUser } = require('./helpers');
 const { Board } = require('../models');
+const { todaySeed } = require('../game/board');
 
 useTestDatabase();
 
@@ -100,6 +101,48 @@ describe('POST /api/boards/:seed/attempts', () => {
       .post('/api/boards/daily-1/attempts')
       .send({ clicks: 1, status: 'lost' })
       .expect(401);
+  });
+});
+
+describe('GET /api/boards/today', () => {
+  test("returns the board for the server's date", async () => {
+    const res = await request(app).get('/api/boards/today').expect(200);
+    assert.equal(res.body.seed, todaySeed());
+    assert.equal(res.body.date, todaySeed().slice('daily-'.length));
+    assert.equal(res.body.rows, 16);
+    assert.equal(res.body.cols, 16);
+    assert.equal(res.body.mineCount, 40);
+    assert.equal(res.body.mines.length, 40);
+    assert.equal(res.body.adjacent.length, 256);
+    assert.equal(res.body.mines.includes(res.body.start), false);
+  });
+
+  test('needs no login and gives everyone the same board', async () => {
+    const a = await request(app).get('/api/boards/today').expect(200);
+    const b = await request(app).get('/api/boards/today').expect(200);
+    assert.deepEqual(a.body, b.body);
+  });
+});
+
+describe('GET /api/boards/:seed/layout', () => {
+  test("returns today's board and earlier boards", async () => {
+    const today = await request(app).get(`/api/boards/${todaySeed()}/layout`).expect(200);
+    const todayDirect = await request(app).get('/api/boards/today').expect(200);
+    assert.deepEqual(today.body, todayDirect.body);
+
+    const past = await request(app).get('/api/boards/daily-2026-11-02/layout').expect(200);
+    assert.equal(past.body.seed, 'daily-2026-11-02');
+    assert.equal(past.body.date, '2026-11-02');
+    assert.equal(past.body.mines.length, 40);
+  });
+
+  test('refuses future days, unknown seeds and bad dates', async () => {
+    const future = todaySeed(new Date(Date.now() + 48 * 60 * 60 * 1000));
+    await request(app).get(`/api/boards/${future}/layout`).expect(404);
+    await request(app).get('/api/boards/daily-2099-01-01/layout').expect(404);
+    await request(app).get('/api/boards/daily-2026-02-30/layout').expect(404);
+    await request(app).get('/api/boards/test-1/layout').expect(404);
+    await request(app).get('/api/boards/bad%20seed!/layout').expect(400);
   });
 });
 

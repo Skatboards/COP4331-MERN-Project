@@ -1,5 +1,6 @@
 import { apiRequest } from './client';
 import type { Attempt, Board, BoardAttempt } from './types';
+import type { Board as GameBoard } from '../game/minesweeper';
 import type { GameState } from '../game/state';
 
 export function getBoards(limit = 10) {
@@ -37,4 +38,43 @@ export function saveGameProgress(token: string, seed: string, game: GameState, c
   return apiRequest<{ saved: boolean }>(
     `/boards/${encodeURIComponent(seed)}/progress`, { method: 'POST', body: { game, completionPercentage }, token },
   );
+}
+
+type BoardLayout = {
+  seed: string;
+  date: string;
+  rows: number;
+  cols: number;
+  mineCount: number;
+  mines: number[];
+  adjacent: number[];
+  start: number;
+};
+
+export type LoadedBoard = { seed: string; date: string; board: GameBoard };
+
+function toLoadedBoard(layout: BoardLayout): LoadedBoard {
+  const isMine = new Array<boolean>(layout.rows * layout.cols).fill(false);
+  for (const cell of layout.mines) isMine[cell] = true;
+  return {
+    seed: layout.seed,
+    date: layout.date,
+    board: {
+      rows: layout.rows,
+      cols: layout.cols,
+      mineCount: layout.mineCount,
+      isMine,
+      adjacent: layout.adjacent,
+      mineIndices: layout.mines,
+      start: layout.start,
+    },
+  };
+}
+
+export async function getTodayBoard() {
+  return toLoadedBoard(await apiRequest<BoardLayout>('/boards/today'));
+}
+
+export async function getBoardLayout(seed: string) {
+  return toLoadedBoard(await apiRequest<BoardLayout>(`/boards/${encodeURIComponent(seed)}/layout`));
 }
