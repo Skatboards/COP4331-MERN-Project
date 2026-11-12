@@ -72,7 +72,7 @@ Build and start the complete development stack:
 docker compose -f compose.dev.yaml up --build
 ```
 
-The client and server source directories are bind-mounted into their containers. Vite uses filesystem polling and the server uses Nodemon, so source changes should reload without rebuilding the images.
+The client and server source directories are bind-mounted into their containers. Vite uses filesystem polling, and the Docker backend runs Nodemon in legacy polling mode for `server.js` and the runtime source directories so application changes reload reliably through Docker Desktop bind mounts without scanning tests or maintenance scripts. Host-native `npm run dev` keeps Nodemon's normal event-based watcher.
 
 `compose.dev.yaml` is the only Compose file intended for local development. It
 publishes the development ports, mounts source code, runs Vite and Nodemon, and
