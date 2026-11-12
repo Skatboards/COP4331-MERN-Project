@@ -55,11 +55,14 @@ cd backend
 npm run set-role -- <username or email> <user|admin|siteadmin>
 ```
 
-With Docker Compose:
+With the local Docker Compose stack:
 
 ```bash
-docker compose exec backend npm run set-role -- alexrivera siteadmin
+docker compose -f compose.dev.yaml exec backend npm run set-role -- alexrivera siteadmin
 ```
+
+For production, use the active release's protected environment and immutable
+image tag as documented in [deploy/README.md](../deploy/README.md#manage-a-production-role).
 
 ## Using the dashboard
 

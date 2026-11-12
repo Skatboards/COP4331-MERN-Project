@@ -4,7 +4,7 @@
 //   npm run set-role -- <username or email> <user|admin|siteadmin>
 //
 // Uses MONGODB_URI from the environment or backend/.env. In Docker Compose:
-//   docker compose exec backend npm run set-role -- alexrivera siteadmin
+//   docker compose -f compose.dev.yaml exec backend npm run set-role -- alexrivera siteadmin
 require('dotenv').config();
 const mongoose = require('mongoose');
 const { User } = require('../models');

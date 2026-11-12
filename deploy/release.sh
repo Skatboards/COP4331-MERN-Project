@@ -86,6 +86,40 @@ compose_for() {
     "$@"
 }
 
+# Compose v2.6 supports --wait but not --wait-timeout. Bound the wait with the
+# host's GNU timeout while preserving the exact image/configuration pairing.
+start_release_stack() {
+  local sha="$1"
+  local env_id="$2"
+  local env_file
+
+  env_file="$(environment_file "$env_id")"
+  if [[ ! -f "$env_file" ]]; then
+    printf 'Missing protected runtime environment for release %s\n' "$sha" >&2
+    return 1
+  fi
+  command -v timeout >/dev/null 2>&1 || {
+    printf '%s\n' 'The GNU timeout command is required to bound Compose startup.' >&2
+    return 1
+  }
+
+  timeout --signal=TERM 300s \
+    env IMAGE_TAG="$sha" docker compose \
+      --env-file "$env_file" \
+      -f "$COMPOSE_FILE" \
+      up \
+      --detach \
+      --no-build \
+      --remove-orphans \
+      --wait || {
+        local status=$?
+        if [[ "$status" -eq 124 ]]; then
+          printf '%s\n' 'Timed out after 300 seconds waiting for the Compose stack to become healthy.' >&2
+        fi
+        return "$status"
+      }
+}
+
 # Confirm that code, configuration, and both application images are available
 # before recording or attempting a rollback to a release.
 require_release_assets() {
@@ -174,12 +208,7 @@ deploy_release() {
 
   show_diagnostics "$previous_sha" "$previous_env_id"
   write_release_state "$REPLACEMENT_MARKER" "$RELEASE_SHA" "$RELEASE_ENV_ID"
-  compose_for "$RELEASE_SHA" "$RELEASE_ENV_ID" up \
-    --detach \
-    --no-build \
-    --remove-orphans \
-    --wait \
-    --wait-timeout 300
+  start_release_stack "$RELEASE_SHA" "$RELEASE_ENV_ID"
 }
 
 # Restore the last successful code, images, and runtime environment when a
@@ -217,12 +246,7 @@ rollback_release() {
   git checkout --detach --force "$previous_sha"
   [[ "$(git rev-parse HEAD)" == "$previous_sha" ]]
   compose_for "$previous_sha" "$previous_env_id" config --quiet
-  compose_for "$previous_sha" "$previous_env_id" up \
-    --detach \
-    --no-build \
-    --remove-orphans \
-    --wait \
-    --wait-timeout 300
+  start_release_stack "$previous_sha" "$previous_env_id"
   rm -f "$REPLACEMENT_MARKER" "$PENDING_PREVIOUS_FILE"
   printf 'Rolled back to %s\n' "$previous_sha"
   printf '%s\n' 'ROLLBACK_PERFORMED=true'
