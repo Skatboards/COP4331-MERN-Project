@@ -54,6 +54,7 @@ release-specific file described in [deploy/README.md](deploy/README.md).
 | `MONGO_PORT` | `27017` | Development-only MongoDB port exposed on `127.0.0.1`; production does not publish MongoDB |
 | `DOMAIN` | empty | Optional Vite development allowed-host setting; unused in production |
 | `JWT_SECRET` | placeholder | Secret for signing login tokens. Replace the local placeholder (`openssl rand -hex 32`); production requires a GitHub secret |
+| `JWT_EXPIRES_IN` | `1d` | Login-token lifetime accepted by `jsonwebtoken`, such as `12h`, `1d`, or `7d` |
 | `APP_URL` | `http://localhost:5173` | Site address used in email links and OAuth callbacks; production requires the public HTTPS origin |
 | `MONGO_PORT` | `27017` | MongoDB port exposed on `127.0.0.1` |
 | `JWT_SECRET` | placeholder | Secret for signing login tokens. Replace the example's placeholder with your own value (`openssl rand -hex 32`) so logins survive restarts. If empty, a random secret is used per run |
