@@ -10,6 +10,7 @@ Sweeple is a React, TypeScript, and Vite Minesweeper game. The frontend provides
 - `/archive/:seed` — read-only view of an archived board.
 - `/settings` — account and display preferences.
 - `/reset-password` — password reset flow.
+- `/admin` — admin dashboard for admins and site admins: search, create, edit, reset, and delete accounts, and (site admins) promote or demote admins. Other visitors are sent to `/`. See [docs/admin.md](../docs/admin.md).
 
 ## Developer reference pages
 

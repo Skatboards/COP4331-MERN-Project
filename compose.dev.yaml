@@ -37,6 +37,9 @@ services:
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DATABASE:-GameDB}
       JWT_SECRET: ${JWT_SECRET:-}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      # Comma-separated emails of site admins (see docs/admin.md)
+      SITE_ADMIN_EMAILS: ${SITE_ADMIN_EMAILS:-}
+      # Site address used in the links in verification and reset emails
       APP_URL: ${APP_URL:-http://localhost:5173}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}

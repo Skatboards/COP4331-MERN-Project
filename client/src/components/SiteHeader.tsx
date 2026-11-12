@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 type SiteHeaderProps = {
   username: string;
   isAuthenticated: boolean;
+  // Admins and site admins get a link to the dashboard
+  showAdmin?: boolean;
   theme: 'light' | 'dark';
   onThemeToggle: () => void;
   menuOpen: boolean;
@@ -12,7 +14,7 @@ type SiteHeaderProps = {
   onAccountAction: () => void;
 };
 
-export default function SiteHeader({ username, isAuthenticated, theme, onThemeToggle, menuOpen, onMenuToggle, onHelp, onMenuClose, onAccountAction }: SiteHeaderProps) {
+export default function SiteHeader({ username, isAuthenticated, showAdmin = false, theme, onThemeToggle, menuOpen, onMenuToggle, onHelp, onMenuClose, onAccountAction }: SiteHeaderProps) {
   return (
     <header className="topbar">
       <Link className="wordmark" to="/" aria-label="Sweeple home" onClick={onMenuClose}>Sweeple<span>.</span></Link>
@@ -38,6 +40,7 @@ export default function SiteHeader({ username, isAuthenticated, theme, onThemeTo
             <div className="account-menu" role="menu">
               <Link role="menuitem" to="/archive" onClick={onMenuClose}>Archive <span>↗</span></Link>
               <Link role="menuitem" to="/settings" onClick={onMenuClose}>Settings <span>⚙</span></Link>
+              {showAdmin && <Link role="menuitem" to="/admin" onClick={onMenuClose}>Admin <span>⚑</span></Link>}
               <div className="menu-divider" />
               <button role="menuitem" onClick={onAccountAction}>{isAuthenticated ? 'Sign out' : 'Sign in'} <span>{isAuthenticated ? '⇥' : '↗'}</span></button>
             </div>
