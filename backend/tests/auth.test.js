@@ -27,6 +27,7 @@ describe('POST /api/auth/register', () => {
     assert.equal(res.body.user.username, 'ada');
     assert.equal(res.body.user.email, 'ada@example.com');
     assert.equal(res.body.user.emailVerified, false);
+    assert.equal(res.body.user.role, 'user');
     assert.equal(res.body.user.passwordHash, undefined);
 
     assert.equal(sentEmails.length, 1);
@@ -127,6 +128,7 @@ describe('POST /api/auth/login', () => {
       .send({ login: user.email.toUpperCase(), password: user.password })
       .expect(200);
     assert.equal(res.body.user.username, user.username);
+    assert.equal(res.body.user.role, 'user');
   });
 
   test('refuses an unverified user', async () => {

@@ -2,8 +2,8 @@
 
 Compose mounts `mongo/init/` at `/docker-entrypoint-initdb.d`. The official MongoDB image runs those files in alphabetical order, once, when it starts with a new, empty data volume:
 
-1. `01-create-schema.js` creates the `users`, `boards`, and `boardAttempts` collections in `GameDB` and their unique indexes (`users.username`, `users.email`, `boards.seed`, and `boardAttempts` on `userId` + `boardId`).
-2. `02-seed-data.js` inserts sample users, boards, and board attempts if they do not already exist.
+1. `01-create-schema.js` creates the `users`, `boards`, and `boardAttempts` collections in `GameDB` and their unique indexes (`users.username`, `users.email`, `boards.seed`, and `boardAttempts` on `userId` + `boardId`), plus a regular index on `users.role` for the admin dashboard.
+2. `02-seed-data.js` inserts sample users, boards, and board attempts if they do not already exist. Every sample user has `role: 'user'`. Make a site admin with `SITE_ADMIN_EMAILS` or `npm run set-role` (see [docs/admin.md](../docs/admin.md)).
 
 The sample users' `passwordHash` values are placeholders (`DEMO_HASH_NOT_FOR_LOGIN`); they are fixture data, not usable logins. Authentication code should reject them.
 

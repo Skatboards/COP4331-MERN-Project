@@ -18,6 +18,17 @@ export default function DevComponentsPage() {
           <button className="primary-button" type="button">Primary action</button>
           <button className="text-button" type="button">Text action</button>
           <button className="back-link" type="button">Back link</button>
+          <button className="danger-button" type="button">Destructive action</button>
+          <button className="text-button danger-text" type="button">Destructive text action</button>
+        </div>
+      </section>
+
+      <section className="dev-reference-section" aria-labelledby="roles-title">
+        <h2 id="roles-title">Role badges</h2>
+        <div className="dev-component-sample">
+          <span className="role-badge role-user">User</span>
+          <span className="role-badge role-admin">Admin</span>
+          <span className="role-badge role-siteadmin">Site admin</span>
         </div>
       </section>
 

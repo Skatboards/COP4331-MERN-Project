@@ -1,0 +1,58 @@
+meta {
+  name: Create User
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/admin/users
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "username": "{{adminNewUsername}}",
+    "email": "{{adminNewUsername}}@example.com",
+    "firstName": "Bruno",
+    "lastName": "Created"
+  }
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("adminLogin")) {
+    bru.runner.skipRequest();
+    return;
+  }
+  // A fresh account each run
+  bru.setVar("adminNewUsername", "bru" + Date.now().toString().slice(-8));
+}
+
+script:post-response {
+  if (res.getStatus() === 201) {
+    bru.setVar("adminUserId", res.getBody().user.id);
+  }
+}
+
+tests {
+  test("returns 201 Created", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("the account starts verified, as a regular user, without a password", function () {
+    const user = res.getBody().user;
+    expect(user.username).to.equal(bru.getVar("adminNewUsername"));
+    expect(user.role).to.equal("user");
+    expect(user.emailVerified).to.equal(true);
+    expect(user.hasPassword).to.equal(false);
+  });
+}
+
+docs {
+  Creates a throwaway regular user. With no password, the server emails a
+  set-password link (in the backend log when SMTP is off). Saves `adminUserId`.
+}

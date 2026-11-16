@@ -47,6 +47,8 @@ cp .env.example .env
 | `MONGO_DATABASE` | `GameDB` | MongoDB database name |
 | `MONGO_PORT` | `27017` | MongoDB port exposed on `127.0.0.1` |
 | `JWT_SECRET` | placeholder | Secret for signing login tokens. Replace the example's placeholder with your own value (`openssl rand -hex 32`) so logins survive restarts. If empty, a random secret is used per run |
+| `JWT_EXPIRES_IN` | `1d` | How long a login lasts, e.g. `12h` |
+| `SITE_ADMIN_EMAILS` | empty | Comma-separated emails of site admins. Matching verified accounts are promoted on startup and when created (see [docs/admin.md](docs/admin.md)) |
 | `APP_URL` | `http://localhost:5173` | Site address used in the links in emails |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | empty, `587`, `false` | Outgoing mail server. With `SMTP_HOST` empty, emails are printed to the backend log |
 | `MAIL_FROM` | `Sweeple <no-reply@localhost>` | Sender of verification and reset emails |
@@ -91,6 +93,7 @@ The client is a routed React app ([client/src/App.tsx](client/src/App.tsx)): hom
 - Players can also create an email and password account, which asks them to verify their email, and sign in with a username or email and password. The token and user are saved in `localStorage`.
 - An account whose email is not verified can resend the verification email from the dialog.
 - The link in the verification email returns to `/?verified=1` (or `0` if the link was invalid or expired), which opens the dialog with a message.
+- Admins and site admins get an **Admin** link in the account menu. It leads to the dashboard at `/admin` ([AdminPage.tsx](client/src/pages/AdminPage.tsx)), which is guarded by [RequireRole.tsx](client/src/components/RequireRole.tsx). See [docs/admin.md](docs/admin.md).
 
 ## Running without Docker
 
@@ -131,9 +134,12 @@ npm run preview
 npm run dev
 npm start
 npm test
+npm run set-role -- <username or email> <user|admin|siteadmin>
 ```
 
 `npm test` runs the API tests in `backend/tests/` (at least one per endpoint) against a temporary in-memory MongoDB 7.0. It needs no running database; the first run downloads the MongoDB binary.
+
+`npm run set-role` changes an account's role in the database at `MONGODB_URI`; in Compose, run `docker compose exec backend npm run set-role -- alexrivera siteadmin`. See [docs/admin.md](docs/admin.md).
 
 ### Bruno (API requests)
 
@@ -149,7 +155,7 @@ npx @usebruno/cli@4.3.0 run --env Local \
   --env-var password=YOUR_PASSWORD
 ```
 
-The collection covers **auth**, **boards**, and **users** endpoints that fit Bruno (register through profile, list/record attempts, leaderboard, search). OAuth sign-in itself is browser-only; use **Get Auth Providers** to see what the server exposes. Full request list, environment variables, and flows: [bruno/README.md](bruno/README.md). API Role lab demo script: [docs/api-lab-demo.md](docs/api-lab-demo.md).
+The collection covers **auth**, **boards**, **users**, and **admin** (in `Admin/`, skipped unless `adminLogin` is set) endpoints that fit Bruno (register through profile, list/record attempts, leaderboard, search). OAuth sign-in itself is browser-only; use **Get Auth Providers** to see what the server exposes. Full request list, environment variables, and flows: [bruno/README.md](bruno/README.md). API Role lab demo script: [docs/api-lab-demo.md](docs/api-lab-demo.md).
 
 ## API
 
@@ -177,6 +183,14 @@ All requests and responses are JSON. The full description is in [backend/openapi
 | `GET` | `/api/boards/:seed` | One board's global stats |
 | `GET` | `/api/boards/:seed/attempts` | Best finished games on a board |
 | `POST` | `/api/boards/:seed/attempts` | *login* Record a finished game `{ clicks, status: "won" \| "lost", efficiency }`; one per user per board |
+| `GET` | `/api/admin/users?q=&role=&page=` | *admin* Accounts you can see (admins: users only; site admins: everyone) |
+| `GET` | `/api/admin/users/:id` | *admin* One account |
+| `POST` | `/api/admin/users` | *admin* Create an account (verified; without a password, a set-password link is emailed) |
+| `PATCH` | `/api/admin/users/:id` | *admin* Edit names, username, email, verified flag, or role |
+| `POST` | `/api/admin/users/:id/password-reset` | *admin* Email a password reset link |
+| `DELETE` | `/api/admin/users/:id` | *admin* Delete the account and its games; board stats are recomputed |
+
+Endpoints marked *admin* need a login from an admin or site admin. An account can only manage accounts whose role ranks below its own; see [docs/admin.md](docs/admin.md) for the permission matrix.
 
 Passwords are hashed with bcrypt. GitHub and Google sign-in use the authorization code flow with state and PKCE. Verification and reset tokens are single-use, expire (24 hours and 1 hour), and only their SHA-256 hashes are stored. The forgot-password and resend endpoints answer the same way whether or not an email is registered.
 
@@ -235,3 +249,7 @@ docker compose logs backend
 ### Everyone is logged out after the backend restarts
 
 `JWT_SECRET` is empty, so the backend made a new random secret at startup and old tokens no longer verify. Set it in `.env` and run `docker compose up -d backend`.
+
+### How do I become a site admin?
+
+Add your account's email to `SITE_ADMIN_EMAILS` in `.env` and restart the backend (`docker compose up -d backend`). Your email must be verified. Or run `docker compose exec backend npm run set-role -- <your username> siteadmin`. Sign out and back in (or reload) to see the **Admin** link. Details: [docs/admin.md](docs/admin.md).

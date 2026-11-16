@@ -8,6 +8,7 @@ const {
   sendVerificationEmail,
   sendPasswordResetEmail
 } = require('../lib/email');
+const { roleForEmail } = require('../lib/bootstrapAdmins');
 
 const router = express.Router();
 
@@ -52,6 +53,8 @@ function publicUser(user) {
     username: user.username,
     email: user.email,
     emailVerified: user.emailVerified,
+    // 'user', 'admin', or 'siteadmin' (see lib/roles.js)
+    role: user.role || 'user',
     // Linked sign-in providers, e.g. ['github']
     providers: (user.oauthAccounts || []).map((account) => account.provider),
     totalClicks: user.totalClicks,
@@ -102,6 +105,8 @@ router.post('/register', async (req, res) => {
       username,
       email,
       passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
+      // Logging in still requires verifying the address
+      role: roleForEmail(email),
       emailVerificationTokenHash: hash,
       emailVerificationExpires: new Date(Date.now() + VERIFY_TOKEN_TTL_MS)
     });
@@ -205,14 +210,20 @@ router.post('/forgot-password', async (req, res) => {
   const user = email ? await User.findOne({ email }) : null;
 
   if (user) {
-    const { token, hash } = createOneTimeToken();
-    user.passwordResetTokenHash = hash;
-    user.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_TTL_MS);
-    await user.save();
-    sendInBackground(sendPasswordResetEmail(user, token));
+    await issuePasswordReset(user);
   }
   res.json({ message: CHECK_EMAIL_MESSAGE });
 });
+
+// Stores a new reset token on the user and emails them the reset link (also
+// used by the admin dashboard, and to let admin-created users set a password)
+async function issuePasswordReset(user) {
+  const { token, hash } = createOneTimeToken();
+  user.passwordResetTokenHash = hash;
+  user.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+  await user.save();
+  sendInBackground(sendPasswordResetEmail(user, token));
+}
 
 // POST /api/auth/reset-password - Set a new password with the emailed token
 router.post('/reset-password', async (req, res) => {
@@ -250,3 +261,10 @@ router.post('/reset-password', async (req, res) => {
 
 module.exports = router;
 module.exports.publicUser = publicUser;
+// Shared with routes/admin.js
+module.exports.USERNAME_PATTERN = USERNAME_PATTERN;
+module.exports.EMAIL_PATTERN = EMAIL_PATTERN;
+module.exports.BCRYPT_ROUNDS = BCRYPT_ROUNDS;
+module.exports.asString = asString;
+module.exports.passwordProblem = passwordProblem;
+module.exports.issuePasswordReset = issuePasswordReset;
