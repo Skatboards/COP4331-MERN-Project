@@ -28,6 +28,8 @@ OAuth browser redirects (`GET /api/auth/github`, callbacks) are not in this coll
 | 13 | Get Board | No | `200` — uses env `seed` |
 | 14 | Board Attempts | No | `200` — best games on `seed`; `404` if the board does not exist |
 | 15 | Record Attempt | Bearer | `201` — new `recordSeed` each run; run Login first |
+| 19 | Get Today Board | No | `200` — today's layout; saves `todaySeed` |
+| 20 | Get Board Layout | No | `200` — layout for env `seed`; `404` for a later day |
 
 ## User requests (beyond profile)
 

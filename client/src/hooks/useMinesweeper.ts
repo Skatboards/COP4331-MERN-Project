@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getGameProgress, saveGameProgress, submitAttempt } from '../api/boards';
 import { useAuth } from '../auth/useAuth';
-import { efficiency, generateBoard, parClicks } from '../game/minesweeper.ts';
+import { efficiency, parClicks, type Board } from '../game/minesweeper.ts';
 import {
   chordCell, newGame, parseSavedGame, revealCell, toggleFlag, type GameState,
 } from '../game/state.ts';
@@ -60,9 +60,8 @@ function playRevealSound() {
   }
 }
 
-export function useMinesweeper(seed: string) {
+export function useMinesweeper(seed: string, board: Board) {
   const { token, user, loading: authLoading } = useAuth();
-  const board = useMemo(() => generateBoard(seed), [seed]);
   const par = useMemo(() => parClicks(board), [board]);
   const [game, setGame] = useState<GameState>(() =>
     authLoading || (token && user) ? newGame(board, seed) : loadGame(seed, board.rows * board.cols, () => newGame(board, seed))

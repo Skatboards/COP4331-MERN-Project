@@ -1,31 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  COLS, MINES, ROWS, dailySeed, efficiency, generateBoard, neighbors, openingReveal, optimalClicks, parClicks,
+  COLS, ROWS, efficiency, neighbors, openingReveal, optimalClicks, parClicks,
 } from '../src/game/minesweeper.ts';
+import { generateBoard } from './fixtures.ts';
 import { newGame, parseSavedGame, revealCell, toggleFlag } from '../src/game/state.ts';
 
 const CELLS = ROWS * COLS;
-
-test('dailySeed matches the API format', () => {
-  assert.equal(dailySeed(new Date(2026, 10, 2)), 'daily-2026-11-02');
-  assert.equal(dailySeed(new Date(2026, 0, 5)), 'daily-2026-01-05');
-});
-
-test('same seed gives the same board, different seeds differ', () => {
-  const a = generateBoard('daily-2026-11-02');
-  assert.deepEqual(a.mineIndices, generateBoard('daily-2026-11-02').mineIndices);
-  assert.notDeepEqual(a.mineIndices, generateBoard('daily-2026-11-03').mineIndices);
-});
-
-test('board has the right mines and correct adjacency counts', () => {
-  const b = generateBoard('adj');
-  assert.equal(b.mineIndices.length, MINES);
-  assert.equal(b.isMine.filter(Boolean).length, MINES);
-  for (let i = 0; i < CELLS; i++) {
-    if (!b.isMine[i]) assert.equal(b.adjacent[i], neighbors(i).filter((n) => b.isMine[n]).length);
-  }
-});
 
 test('neighbors handles corners and edges', () => {
   assert.equal(neighbors(0).length, 3);
@@ -41,10 +22,6 @@ test('opening is safe and opens a region, for many seeds', () => {
     assert.ok(open.size > 1);
     for (const i of open) assert.equal(b.isMine[i], false);
   }
-});
-
-test('too many mines is rejected', () => {
-  assert.throws(() => generateBoard('x', 4, 4, 10));
 });
 
 test('revealing: counts clicks, ignores no-ops, loses on a mine', () => {
