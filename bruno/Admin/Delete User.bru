@@ -1,0 +1,32 @@
+meta {
+  name: Delete User
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/api/admin/users/{{adminUserId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+script:pre-request {
+  if (!bru.getEnvVar("adminLogin")) {
+    bru.runner.skipRequest();
+  }
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Deletes the account from Create User and its games (it has none), and
+  recomputes the stats of any boards it played.
+}

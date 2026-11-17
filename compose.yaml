@@ -35,6 +35,9 @@ services:
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DATABASE:-GameDB}
       # Login tokens; without it a random secret is used and logins reset on restart
       JWT_SECRET: ${JWT_SECRET:-}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      # Comma-separated emails of site admins (see docs/admin.md)
+      SITE_ADMIN_EMAILS: ${SITE_ADMIN_EMAILS:-}
       # Site address used in the links in verification and reset emails
       APP_URL: ${APP_URL:-http://localhost:5173}
       # Without SMTP_HOST, emails are printed to the backend log instead of sent

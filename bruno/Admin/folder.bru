@@ -1,0 +1,15 @@
+meta {
+  name: Admin
+  seq: 19
+}
+
+docs {
+  Admin dashboard API (docs/admin.md). Needs an admin or site admin account:
+  set `adminLogin` and the secret `adminPassword` in the environment. Every
+  request here is skipped when `adminLogin` is not set, so a full collection
+  run with a regular account still passes.
+
+  Run in order: Admin Login, List Users, Create User, Update User,
+  Send Password Reset, Delete User. Create makes a throwaway account and
+  Delete removes it again.
+}
