@@ -50,17 +50,12 @@ release-specific file described in [deploy/README.md](deploy/README.md).
 | `IMAGE_TAG` | `dev` | Development image tag; deployment overrides it with the exact commit SHA |
 | `CLIENT_PORT` | `5173` | Frontend port exposed on the host |
 | `BACKEND_PORT` | `3000` | Express port exposed on the host |
-| `MONGO_DATABASE` | `GameDB` | MongoDB database name |
 | `MONGO_PORT` | `27017` | Development-only MongoDB port exposed on `127.0.0.1`; production does not publish MongoDB |
 | `DOMAIN` | empty | Optional Vite development allowed-host setting; unused in production |
-| `JWT_SECRET` | placeholder | Secret for signing login tokens. Replace the local placeholder (`openssl rand -hex 32`); production requires a GitHub secret |
 | `JWT_EXPIRES_IN` | `1d` | Login-token lifetime accepted by `jsonwebtoken`, such as `12h`, `1d`, or `7d` |
 | `APP_URL` | `http://localhost:5173` | Site address used in email links and OAuth callbacks; production requires the public HTTPS origin |
-| `MONGO_PORT` | `27017` | MongoDB port exposed on `127.0.0.1` |
 | `JWT_SECRET` | placeholder | Secret for signing login tokens. Replace the example's placeholder with your own value (`openssl rand -hex 32`) so logins survive restarts. If empty, a random secret is used per run |
-| `JWT_EXPIRES_IN` | `1d` | How long a login lasts, e.g. `12h` |
 | `SITE_ADMIN_EMAILS` | empty | Comma-separated emails of site admins. Matching verified accounts are promoted on startup and when created (see [docs/admin.md](docs/admin.md)) |
-| `APP_URL` | `http://localhost:5173` | Site address used in the links in emails |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | empty, `587`, `false` | Outgoing mail server. With `SMTP_HOST` empty, emails are printed to the backend log |
 | `MAIL_FROM_NAME`, `MAIL_FROM_ADDRESS` | empty | Display name and address for verification and reset emails; both are required when `SMTP_HOST` is set |
 | `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | empty | Optional complete pair in development and production; the provider is hidden when both are empty (see [docs/oauth.md](docs/oauth.md)) |
@@ -274,11 +269,8 @@ docker compose -f compose.dev.yaml logs backend
 
 ### Everyone is logged out after the backend restarts
 
-`JWT_SECRET` is empty, so the backend made a new random secret at startup and old tokens no longer verify. Set it in `.env` and run `docker compose up -d backend`.
+`JWT_SECRET` is empty, so the backend made a new random secret at startup and old tokens no longer verify. Set it in `.env` and run `docker compose up -f compose.dev.yaml -d backend`.
 
 ### How do I become a site admin?
 
 Add your account's email to `SITE_ADMIN_EMAILS` in `.env` and restart the backend (`docker compose -f compose.dev.yaml up -d backend`). Your email must be verified. Or run `docker compose -f compose.dev.yaml exec backend npm run set-role -- <your username> siteadmin`. Sign out and back in (or reload) to see the **Admin** link. Details: [docs/admin.md](docs/admin.md).
-
-Add your account's email to `SITE_ADMIN_EMAILS` in `.env` and restart the backend (`docker compose up -d backend`). Your email must be verified. Or run `docker compose exec backend npm run set-role -- <your username> siteadmin`. Sign out and back in (or reload) to see the **Admin** link. Details: [docs/admin.md](docs/admin.md).
-`JWT_SECRET` is empty, so the backend made a new random secret at startup and old tokens no longer verify. Set it in `.env` and run `docker compose -f compose.dev.yaml up -d backend`.
