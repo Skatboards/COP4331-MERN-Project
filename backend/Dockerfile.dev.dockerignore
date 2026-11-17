@@ -1,0 +1,16 @@
+*
+!package.json
+!package-lock.json
+!server.js
+!lib/
+!lib/**
+!middleware/
+!middleware/**
+!models/
+!models/**
+!routes/
+!routes/**
+!scripts/
+!scripts/set-role.js
+!tests/
+!tests/**
