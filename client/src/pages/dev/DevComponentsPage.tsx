@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import BoardPlaceholder from '../../components/BoardPlaceholder';
 import Modal from '../../components/Modal';
+import DifficultyBadge from '../../components/DifficultyBadge';
+import Icon from '../../components/Icon';
 
 export default function DevComponentsPage() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -21,6 +23,19 @@ export default function DevComponentsPage() {
           <button className="danger-button" type="button">Destructive action</button>
           <button className="text-button danger-text" type="button">Destructive text action</button>
         </div>
+      </section>
+
+      <section className="dev-reference-section" aria-labelledby="game-ui-title">
+        <h2 id="game-ui-title">Game UI</h2>
+        <div className="dev-component-sample">
+          <DifficultyBadge difficulty="Easy" minClicks={41} />
+          <DifficultyBadge difficulty="Medium" />
+          <DifficultyBadge difficulty="Hard" />
+          <button className="secondary-button icon-button" type="button"><Icon name="shuffle" />Secondary action</button>
+          <button className="icon-only-button" type="button" aria-label="Next"><Icon name="chevronRight" /></button>
+          <span className="solved-by">Solved by <strong>1,531</strong> players</span>
+        </div>
+        <p className="dev-reference-note">Also: <code>GameView</code>, <code>ShareDialog</code>, and <code>ScoreCard</code> with <code>seed</code> or <code>tabs</code>.</p>
       </section>
 
       <section className="dev-reference-section" aria-labelledby="roles-title">
