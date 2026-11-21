@@ -1,5 +1,7 @@
 const express = require('express');
-const { User, BoardAttempt } = require('../models');
+const { User, Board, BoardAttempt } = require('../models');
+const { seedDate, dayNumber, DAY_MS } = require('../lib/seeds');
+const { computeStreaks } = require('../lib/stats');
 const requireAuth = require('../middleware/auth');
 const { publicUser } = require('./auth');
 
@@ -33,40 +35,118 @@ router.get('/me', requireAuth, async (req, res) => {
   res.json({ user: publicUser(user) });
 });
 
-// GET /api/users/me/attempts - The logged-in user's games, newest first
+// Longest from-to range of board dates one request may ask for: one calendar
+// month, which is all the archive page shows at a time
+const MAX_RANGE_DAYS = 31;
+
+function attemptJson(attempt, seed) {
+  return {
+    id: attempt._id,
+    seed: seed ?? attempt.boardId?.seed ?? null,
+    clicks: attempt.clicks,
+    completed: attempt.completed,
+    efficiency: attempt.efficiency,
+    completionPercentage: attempt.status === 'won' ? 100 : attempt.completionPercentage,
+    status: attempt.status,
+    completedAt: attempt.completedAt,
+    timeMs: attempt.timeMs ?? null,
+    onTime: attempt.onTime ?? false,
+    mode: attempt.mode ?? 'daily'
+  };
+}
+
+// The daily seeds from one YYYY-MM-DD date to another, inclusive
+function seedsBetween(from, to) {
+  const seeds = [];
+  for (let day = dayNumber(from); day <= dayNumber(to); day++) {
+    seeds.push(`daily-${new Date(day * DAY_MS).toISOString().slice(0, 10)}`);
+  }
+  return seeds;
+}
+
+// GET /api/users/me/attempts?from=&to=&limit= - The logged-in user's games,
+// newest first, with their stats. from and to (YYYY-MM-DD, inclusive) keep
+// only daily boards in that range, e.g. one calendar month.
 router.get('/me/attempts', requireAuth, async (req, res) => {
+  const { from, to } = req.query;
   const filter = { userId: req.userId };
-  const [attempts, gamesPlayed, gamesWon, gamesFinished, user] = await Promise.all([
-    BoardAttempt.find(filter)
+  const listFilter = { ...filter };
+
+  if (from !== undefined || to !== undefined) {
+    const fromDate = seedDate(`daily-${from}`);
+    const toDate = seedDate(`daily-${to}`);
+    if (!fromDate || !toDate || fromDate > toDate) {
+      return res.status(400).json({ error: 'from and to must be YYYY-MM-DD dates, from first' });
+    }
+    if (dayNumber(toDate) - dayNumber(fromDate) >= MAX_RANGE_DAYS) {
+      return res.status(400).json({ error: `from and to may be at most ${MAX_RANGE_DAYS} days apart` });
+    }
+    const boards = await Board.find({ seed: { $in: seedsBetween(fromDate, toDate) } }).select('_id');
+    listFilter.boardId = { $in: boards.map((board) => board._id) };
+  }
+
+  const [attempts, finished, gamesPlayed, user, playersRanked] = await Promise.all([
+    BoardAttempt.find(listFilter)
       .sort({ createdAt: -1, _id: -1 })
       .limit(readLimit(req.query.limit, 20, 100))
+      .select('-gameState -finalState')
+      .populate('boardId', 'seed'),
+    BoardAttempt.find({ ...filter, status: { $in: ['won', 'lost'] } })
+      .select('status efficiency onTime completedAt boardId')
       .populate('boardId', 'seed'),
     BoardAttempt.countDocuments(filter),
-    BoardAttempt.countDocuments({ ...filter, status: 'won' }),
-    BoardAttempt.countDocuments({ ...filter, status: { $in: ['won', 'lost'] } }),
-    User.findById(req.userId).select('totalClicks efficiency')
+    User.findById(req.userId).select('totalClicks efficiency boardsCompleted'),
+    User.countDocuments({ boardsCompleted: { $gt: 0 } })
   ]);
 
   if (!user) return res.status(404).json({ error: 'User not found' });
 
+  const won = finished.filter((attempt) => attempt.status === 'won');
+  const { currentStreak, longestStreak } = computeStreaks(finished.map((attempt) => ({
+    seed: attempt.boardId?.seed,
+    status: attempt.status,
+    onTime: attempt.onTime,
+    completedAt: attempt.completedAt
+  })));
+  // Place on the efficiency leaderboard (GET /leaderboard?sort=efficiency)
+  const efficiencyRank = user.boardsCompleted > 0
+    ? await User.countDocuments({
+      boardsCompleted: { $gt: 0 },
+      $or: [
+        { efficiency: { $gt: user.efficiency } },
+        { efficiency: user.efficiency, boardsCompleted: { $gt: user.boardsCompleted } }
+      ]
+    }) + 1
+    : null;
+
   res.json({
     stats: {
       gamesPlayed,
-      gamesWon,
-      winRate: gamesFinished ? Math.round((gamesWon / gamesFinished) * 100) : 0,
+      gamesWon: won.length,
+      winRate: finished.length ? Math.round((won.length / finished.length) * 100) : 0,
       averageEfficiency: user.efficiency,
-      totalClicks: user.totalClicks
+      totalClicks: user.totalClicks,
+      bestEfficiency: won.reduce((best, attempt) => Math.max(best, attempt.efficiency), 0),
+      currentStreak,
+      longestStreak,
+      efficiencyRank,
+      playersRanked
     },
-    attempts: attempts.map((attempt) => ({
-      id: attempt._id,
-      seed: attempt.boardId?.seed ?? null,
-      clicks: attempt.clicks,
-      completed: attempt.completed,
-      efficiency: attempt.efficiency,
-      completionPercentage: attempt.status === 'won' ? 100 : attempt.completionPercentage,
-      status: attempt.status,
-      completedAt: attempt.completedAt
-    }))
+    attempts: attempts.map((attempt) => attemptJson(attempt))
+  });
+});
+
+// GET /api/users/me/attempts/:seed - The logged-in user's game on one
+// board, with how they left it; attempt is null if they haven't played it
+router.get('/me/attempts/:seed', requireAuth, async (req, res) => {
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(req.params.seed)) {
+    return res.status(400).json({ error: 'Invalid board seed' });
+  }
+  const board = await Board.findOne({ seed: req.params.seed }).select('_id');
+  const attempt = board && await BoardAttempt.findOne({ userId: req.userId, boardId: board._id });
+  if (!attempt) return res.json({ attempt: null });
+  res.json({
+    attempt: { ...attemptJson(attempt, req.params.seed), finalState: attempt.finalState ?? null }
   });
 });
 

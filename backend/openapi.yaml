@@ -266,21 +266,71 @@ paths:
   /api/users/me/attempts:
     get:
       tags: [Users]
-      summary: The logged-in user's games, newest first
+      summary: The logged-in user's games, newest first, and their stats
       security: [{ bearerAuth: [] }]
       parameters:
-        - $ref: '#/components/parameters/Limit'
+        - name: limit
+          in: query
+          description: How many games to list (stats are not limited)
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: from
+          in: query
+          description: With `to` (send both or neither), only daily boards dated in this range (YYYY-MM-DD, inclusive, at most 31 days)
+          schema: { type: string, format: date, example: '2026-11-01' }
+        - name: to
+          in: query
+          schema: { type: string, format: date, example: '2026-11-30' }
       responses:
         '200':
-          description: Games
+          description: Games and stats (stats always cover every game)
           content:
             application/json:
               schema:
                 type: object
                 properties:
+                  stats:
+                    type: object
+                    properties:
+                      gamesPlayed: { type: integer }
+                      gamesWon: { type: integer }
+                      winRate: { type: integer }
+                      averageEfficiency: { type: number }
+                      totalClicks: { type: integer }
+                      bestEfficiency: { type: number }
+                      currentStreak: { type: integer, description: Consecutive days won on the day itself, still alive within two days }
+                      longestStreak: { type: integer }
+                      efficiencyRank: { type: integer, nullable: true, description: Place on the efficiency leaderboard; null before a first win }
+                      playersRanked: { type: integer }
                   attempts:
                     type: array
                     items: { $ref: '#/components/schemas/Attempt' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/users/me/attempts/{seed}:
+    get:
+      tags: [Users]
+      summary: The logged-in user's game on one board, with its final board
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Seed'
+      responses:
+        '200':
+          description: The game, or null when the user hasn't played this board
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attempt:
+                    nullable: true
+                    allOf:
+                      - $ref: '#/components/schemas/Attempt'
+                      - type: object
+                        properties:
+                          finalState: { $ref: '#/components/schemas/FinalState' }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
   /api/users/search:
@@ -354,6 +404,9 @@ paths:
     get:
       tags: [Boards]
       summary: One board's global stats
+      description: |
+        A board nobody has finished yet returns zeroed stats (totalCompletions is the "Solved by" count),
+        with no `_id` and a null `createdAt`.
       parameters:
         - $ref: '#/components/parameters/Seed'
       responses:
@@ -366,18 +419,21 @@ paths:
                 properties:
                   board: { $ref: '#/components/schemas/Board' }
         '400': { $ref: '#/components/responses/BadRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/boards/{seed}/attempts:
     get:
       tags: [Boards]
-      summary: Best finished games on a board
+      summary: Best finished games on a board (empty when nobody has played it)
       parameters:
         - $ref: '#/components/parameters/Seed'
         - $ref: '#/components/parameters/Limit'
+        - name: sort
+          in: query
+          description: 'result: wins first, then fewest clicks, then fastest. efficiency: wins first, then efficiency, then clicks.'
+          schema: { type: string, enum: [result, efficiency], default: result }
       responses:
         '200':
-          description: Games, best first (wins by efficiency, then fewest clicks)
+          description: Games, best first
           content:
             application/json:
               schema:
@@ -386,19 +442,16 @@ paths:
                   seed: { type: string }
                   attempts:
                     type: array
-                    items:
-                      allOf:
-                        - type: object
-                          properties:
-                            username: { type: string }
-                        - $ref: '#/components/schemas/Attempt'
-        '404': { $ref: '#/components/responses/NotFound' }
+                    items: { $ref: '#/components/schemas/LeaderboardEntry' }
+        '400': { $ref: '#/components/responses/BadRequest' }
     post:
       tags: [Boards]
       summary: Record the logged-in user's finished game
       description: |
         One game per user per board. The board is created if this is its first game.
         Updates the board's stats and the user's totals. A lost game always has an efficiency of 0.
+        Daily boards dated more than a day after the server's UTC date are locked (403 BOARD_LOCKED),
+        and boards before LAUNCH_DATE can't be played (403 BEFORE_LAUNCH). The server sets onTime.
       security: [{ bearerAuth: [] }]
       parameters:
         - $ref: '#/components/parameters/Seed'
@@ -413,6 +466,10 @@ paths:
                 clicks: { type: integer, minimum: 0, example: 18 }
                 status: { type: string, enum: [won, lost], example: won }
                 efficiency: { type: number, minimum: 0, maximum: 100, description: Required when status is won, example: 85.5 }
+                completionPercentage: { type: number, minimum: 0, maximum: 100, description: Share of safe cells cleared (100 when won) }
+                timeMs: { type: integer, minimum: 0, maximum: 86400000, description: Time spent playing, example: 201000 }
+                mode: { type: string, enum: [daily, archive, random], default: daily }
+                finalState: { $ref: '#/components/schemas/FinalState' }
       responses:
         '201':
           description: Game recorded
@@ -425,8 +482,86 @@ paths:
                   board: { $ref: '#/components/schemas/Board' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/BoardBlocked' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: The user already played this board
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /api/boards/{seed}/progress:
+    get:
+      tags: [Boards]
+      summary: Resume the logged-in user's game on a board
+      description: |
+        Returns the saved game of a game still in progress (`game`), or how a finished game ended (`played`).
+        Both are null when the user hasn't started this board.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Seed'
+      responses:
+        '200':
+          description: The saved game or the finished result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  game:
+                    nullable: true
+                    allOf:
+                      - $ref: '#/components/schemas/GameState'
+                  played:
+                    type: object
+                    nullable: true
+                    description: Set when the game is finished (it can no longer be played)
+                    properties:
+                      status: { type: string, enum: [won, lost] }
+                      clicks: { type: integer }
+                      efficiency: { type: number }
+                      completionPercentage: { type: number, minimum: 0, maximum: 100 }
+                      timeMs: { type: integer, nullable: true }
+                      finalState:
+                        nullable: true
+                        allOf:
+                          - $ref: '#/components/schemas/FinalState'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Boards]
+      summary: Save the logged-in user's game in progress
+      description: |
+        Saves a game that is still being played, so it can be resumed. Finished games must be
+        sent to `POST /api/boards/{seed}/attempts` instead (400). Locked and pre-launch daily
+        boards are rejected the same way as there (403).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Seed'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [game, completionPercentage]
+              properties:
+                game: { $ref: '#/components/schemas/GameState' }
+                completionPercentage: { type: number, minimum: 0, maximum: 100, description: Share of safe cells cleared }
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  saved: { type: boolean, example: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/BoardBlocked' }
+        '409':
+          description: The user already finished this board
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -631,6 +766,11 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+    BoardBlocked:
+      description: "The daily board can't be played yet (code: BOARD_LOCKED) or is from before launch (code: BEFORE_LAUNCH)"
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
     Forbidden:
       description: "Your role does not allow this (code: FORBIDDEN)"
       content:
@@ -683,6 +823,7 @@ components:
         totalClicks: { type: integer }
         boardsCompleted: { type: integer }
         efficiency: { type: number }
+        createdAt: { type: string, format: date-time, description: When the account was made; missed days count from here }
     AdminUser:
       allOf:
         - $ref: '#/components/schemas/CurrentUser'
@@ -694,14 +835,14 @@ components:
     Board:
       type: object
       properties:
-        _id: { type: string }
+        _id: { type: string, description: Missing on a board nobody has played yet }
         seed: { type: string }
         totalAttempts: { type: integer }
         totalCompletions: { type: integer }
         globalCompletionPercentage: { type: number }
         averageClicks: { type: number }
         averageEfficiency: { type: number }
-        createdAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time, nullable: true, description: Null on a board nobody has played yet }
     Attempt:
       type: object
       properties:
@@ -711,4 +852,40 @@ components:
         completed: { type: boolean }
         efficiency: { type: number }
         status: { type: string, enum: [in_progress, won, lost] }
+        completionPercentage: { type: number, minimum: 0, maximum: 100 }
         completedAt: { type: string, format: date-time, nullable: true }
+        timeMs: { type: integer, nullable: true, description: Time spent playing; null for untimed games }
+        onTime: { type: boolean, description: Finished on the board's own day (±1 day for time zones); only these count toward a streak }
+        mode: { type: string, enum: [daily, archive, random] }
+    LeaderboardEntry:
+      type: object
+      description: One finished game in a board's leaderboard
+      properties:
+        username: { type: string, nullable: true, description: Null if the account was deleted }
+        clicks: { type: integer }
+        completed: { type: boolean }
+        efficiency: { type: number }
+        status: { type: string, enum: [won, lost] }
+        completionPercentage: { type: number, minimum: 0, maximum: 100 }
+        timeMs: { type: integer, nullable: true, description: Time spent playing; null for untimed games }
+        onTime: { type: boolean }
+        completedAt: { type: string, format: date-time }
+    GameState:
+      type: object
+      description: A game in progress, as the client saves it
+      required: [seed, status, revealed, flags, clicks, explodedAt]
+      properties:
+        seed: { type: string, description: Must match the seed in the path }
+        status: { type: string, enum: [playing, won, lost] }
+        revealed: { type: array, items: { type: integer, minimum: 0, maximum: 4095 }, maxItems: 4096 }
+        flags: { type: array, items: { type: integer, minimum: 0, maximum: 4095 }, maxItems: 4096 }
+        clicks: { type: integer, minimum: 0 }
+        explodedAt: { type: integer, nullable: true }
+        elapsedMs: { type: number, minimum: 0, maximum: 86400000, description: Time spent playing so far }
+    FinalState:
+      type: object
+      description: The board as a finished game left it
+      properties:
+        revealed: { type: array, items: { type: integer } }
+        flags: { type: array, items: { type: integer } }
+        explodedAt: { type: integer, nullable: true }

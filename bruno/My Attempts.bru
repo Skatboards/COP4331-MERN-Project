@@ -22,9 +22,15 @@ tests {
   test("returns an attempts array", function () {
     expect(res.getBody().attempts).to.be.an("array");
   });
+
+  test("returns streak stats", function () {
+    expect(res.getBody().stats.currentStreak).to.be.a("number");
+    expect(res.getBody().stats.longestStreak).to.be.a("number");
+  });
 }
 
 docs {
-  The logged-in user's games, newest first. Run Login (and optionally Record
-  Attempt) first.
+  The logged-in user's games, newest first, with stats (streaks, best
+  efficiency, efficiency rank). Add `?from=2026-11-01&to=2026-11-30` to list one
+  month of daily boards. Run Login (and optionally Record Attempt) first.
 }

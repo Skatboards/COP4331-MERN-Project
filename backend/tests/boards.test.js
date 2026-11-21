@@ -1,7 +1,12 @@
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const { app, request, useTestDatabase, createLoggedInUser } = require('./helpers');
-const { Board } = require('../models');
+const { Board, BoardAttempt } = require('../models');
+
+// YYYY-MM-DD for a day relative to now (UTC)
+function day(offset = 0) {
+  return new Date(Date.now() + offset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
 
 useTestDatabase();
 
@@ -30,8 +35,10 @@ describe('GET /api/boards/:seed', () => {
     assert.equal(res.body.board.totalCompletions, 3);
   });
 
-  test('returns 404 for an unknown board and 400 for a bad seed', async () => {
-    await request(app).get('/api/boards/daily-nope').expect(404);
+  test('returns zeroed stats for a board nobody has played, and 400 for a bad seed', async () => {
+    const res = await request(app).get('/api/boards/daily-nope').expect(200);
+    assert.equal(res.body.board.seed, 'daily-nope');
+    assert.equal(res.body.board.totalCompletions, 0);
     await request(app).get('/api/boards/bad%20seed!').expect(400);
   });
 });
@@ -95,6 +102,44 @@ describe('POST /api/boards/:seed/attempts', () => {
     await play(user, 'daily-1', { clicks: 5, status: 'won', efficiency: 101 }).expect(400);
   });
 
+  test('stores the time, mode and final board, and marks on-time games', async () => {
+    const user = await createLoggedInUser();
+    const finalState = { revealed: [1, 2, 3], flags: [4], explodedAt: null };
+    const today = await play(user, `daily-${day()}`, {
+      clicks: 12, status: 'won', efficiency: 90, timeMs: 61000, finalState
+    }).expect(201);
+    assert.equal(today.body.attempt.timeMs, 61000);
+    assert.equal(today.body.attempt.onTime, true);
+    assert.equal(today.body.attempt.mode, 'daily');
+
+    const late = await play(user, `daily-${day(-5)}`, {
+      clicks: 20, status: 'lost', mode: 'archive', completionPercentage: 40
+    }).expect(201);
+    assert.equal(late.body.attempt.onTime, false);
+    assert.equal(late.body.attempt.mode, 'archive');
+
+    const saved = await BoardAttempt.findById(today.body.attempt.id);
+    assert.deepEqual(saved.finalState, finalState);
+  });
+
+  test('rejects locked and pre-launch boards', async () => {
+    const user = await createLoggedInUser();
+    const locked = await play(user, `daily-${day(3)}`, { clicks: 1, status: 'lost' }).expect(403);
+    assert.equal(locked.body.code, 'BOARD_LOCKED');
+    // One day ahead is allowed for players east of UTC
+    await play(user, `daily-${day(1)}`, { clicks: 1, status: 'lost' }).expect(201);
+    const early = await play(user, 'daily-2020-01-01', { clicks: 1, status: 'lost' }).expect(403);
+    assert.equal(early.body.code, 'BEFORE_LAUNCH');
+  });
+
+  test('rejects a bad time, mode or final board', async () => {
+    const user = await createLoggedInUser();
+    await play(user, 'daily-1', { clicks: 5, status: 'lost', timeMs: -1 }).expect(400);
+    await play(user, 'daily-1', { clicks: 5, status: 'lost', timeMs: 1.5 }).expect(400);
+    await play(user, 'daily-1', { clicks: 5, status: 'lost', mode: 'bot' }).expect(400);
+    await play(user, 'daily-1', { clicks: 5, status: 'lost', finalState: { revealed: 'all' } }).expect(400);
+  });
+
   test('requires login', async () => {
     await request(app)
       .post('/api/boards/daily-1/attempts')
@@ -119,7 +164,25 @@ describe('GET /api/boards/:seed/attempts', () => {
     );
   });
 
-  test('returns 404 for an unknown board', async () => {
-    await request(app).get('/api/boards/daily-nope/attempts').expect(404);
+  test('breaks ties on clicks by time, and can sort by efficiency', async () => {
+    const quick = await createLoggedInUser();
+    const slow = await createLoggedInUser();
+    const efficient = await createLoggedInUser();
+    await play(slow, 'daily-1', { clicks: 10, status: 'won', efficiency: 80, timeMs: 90000 }).expect(201);
+    await play(quick, 'daily-1', { clicks: 10, status: 'won', efficiency: 80, timeMs: 30000 }).expect(201);
+    await play(efficient, 'daily-1', { clicks: 12, status: 'won', efficiency: 99 }).expect(201);
+
+    const byResult = await request(app).get('/api/boards/daily-1/attempts').expect(200);
+    assert.deepEqual(byResult.body.attempts.map((a) => a.username), [quick.username, slow.username, efficient.username]);
+    assert.equal(byResult.body.attempts[0].timeMs, 30000);
+
+    const byEfficiency = await request(app).get('/api/boards/daily-1/attempts?sort=efficiency').expect(200);
+    assert.equal(byEfficiency.body.attempts[0].username, efficient.username);
+    await request(app).get('/api/boards/daily-1/attempts?sort=bot').expect(400);
+  });
+
+  test('returns an empty list for a board nobody has played', async () => {
+    const res = await request(app).get('/api/boards/daily-nope/attempts').expect(200);
+    assert.deepEqual(res.body.attempts, []);
   });
 });
