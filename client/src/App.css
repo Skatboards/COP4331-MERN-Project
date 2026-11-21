@@ -426,3 +426,78 @@ h1,h2 { font-family:'Segoe UI',system-ui,sans-serif; letter-spacing:-1.3px; }
   margin: 10px 0 6px;
   font-size: 13px;
 }
+
+/* ---- UI update: navigation, badges, game view, archive, dashboard ---- */
+.app-shell {
+  --amber-soft: #fdf0d2; --amber-text: #6b4f0e;
+  --danger-soft: #f8e4e1; --danger-text: #9c3b34; --danger-line: #c25a50;
+}
+.app-shell[data-theme='dark'] {
+  --amber-soft: #3b3218; --amber-text: #ffd98a;
+  --danger-soft: #3a2420; --danger-text: #ffaba0; --danger-line: #f08a7e;
+}
+.icon { flex:none; }
+
+/* Buttons */
+.icon-button { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 16px; text-decoration:none; }
+a.primary-button { display:inline-flex; align-items:center; justify-content:center; padding:0 16px; color:#293316; text-decoration:none; }
+.secondary-button { min-height:42px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 14px; border:1px solid var(--line-strong); border-radius:9px; background:var(--surface); color:var(--text); font-size:12px; font-weight:700; text-decoration:none; cursor:pointer; transition:border-color .18s,background .18s; }
+.secondary-button:hover { border-color:var(--brand); background:var(--surface-hover); }
+.text-button.icon-button { padding:0; gap:6px; }
+.icon-only-button { width:42px; height:42px; display:grid; place-items:center; border:1px solid var(--line-strong); border-radius:10px; background:var(--surface); color:var(--text); cursor:pointer; }
+.icon-only-button:hover:not(:disabled) { border-color:var(--brand); }
+.icon-only-button:disabled { opacity:.4; cursor:default; }
+.primary-button:focus-visible,.secondary-button:focus-visible,.icon-only-button:focus-visible,.segmented button:focus-visible { outline:3px solid var(--brand); outline-offset:2px; }
+
+/* Segmented control (leaderboard tabs, calendar filters, board view) */
+.segmented { display:inline-flex; flex-wrap:wrap; gap:4px; padding:4px; border:1px solid var(--line); border-radius:11px; background:var(--surface-alt); }
+.segmented button { min-height:34px; padding:0 13px; border:0; border-radius:8px; background:none; color:var(--muted); font-size:12px; font-weight:700; cursor:pointer; }
+.segmented button[aria-pressed='true'] { background:var(--surface); color:var(--text); box-shadow:var(--shadow-card); }
+.segmented button:disabled { opacity:.45; cursor:default; }
+.scores-card .segmented { margin-top:12px; }
+
+/* Badges */
+.badge-row { display:inline-flex; flex-wrap:wrap; gap:6px; }
+.badge { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:700; white-space:nowrap; }
+.badge-quiet { border:1px solid var(--line); background:var(--surface-alt); color:var(--text-soft); }
+.difficulty-easy,.result-won { background:var(--brand-soft); color:var(--brand-text); }
+.difficulty-medium { background:var(--amber-soft); color:var(--amber-text); }
+.difficulty-hard { background:var(--danger-soft); color:var(--danger-text); }
+.result-lost { background:var(--surface-alt); color:var(--text-soft); border:1px solid var(--line); }
+.solved-by { color:var(--text-soft); font-size:12px; }
+.solved-by strong { color:var(--text); font-size:14px; font-variant-numeric:tabular-nums; }
+
+/* Game view */
+.board-meta { display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; margin-top:12px; }
+.game-toolbar { flex-wrap:wrap; row-gap:8px; }
+.game-end { display:grid; justify-items:center; gap:12px; margin-top:12px; }
+.game-end .game-result { margin-top:0; }
+.game-end-actions { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; }
+.game-note { color:var(--muted); font-size:11px; line-height:1.5; }
+.game-end .game-note { text-align:center; }
+.play-layout { display:grid; gap:16px; }
+.play-layout > .scores-card { margin-top:0; }
+.side-column { display:grid; gap:16px; align-content:start; }
+.side-column .scores-card { margin-top:0; }
+@media (min-width:1000px) {
+  .subpage.random-page,.home-content.play-layout { width:min(100% - 40px, 1120px); }
+  .play-layout { grid-template-columns:minmax(0,1fr) 320px; align-items:start; }
+  .random-page .play-layout { grid-template-columns:minmax(0,1fr) 320px; }
+}
+.heading-actions { display:flex; flex-wrap:wrap; align-items:center; gap:14px; }
+
+/* Leaderboard */
+.score-columns { color:var(--muted); font-size:10px; }
+.score-list li { gap:10px; }
+.score-time { min-width:42px; color:var(--text-soft); font-size:11px; font-variant-numeric:tabular-nums; text-align:right; }
+.score-mine { background:var(--surface-tint); }
+.score-mine .score-name { font-weight:700; }
+.score-signin { margin-top:12px; color:var(--muted); font-size:11px; }
+
+/* Share dialog */
+.share-text { width:100%; box-sizing:border-box; margin-top:16px; padding:12px; resize:none; border:1px solid var(--line-strong); border-radius:10px; background:var(--surface-alt); color:var(--text); font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace; }
+.share-text:focus { outline:3px solid var(--brand); outline-offset:1px; }
+
+/* Sign-in reason */
+.sign-in-reason { display:flex; align-items:center; gap:10px; margin-top:10px; color:var(--text-soft); font-size:12px; line-height:1.5; }
+.sign-in-reason-icon { width:36px; height:36px; flex:none; display:grid; place-items:center; border-radius:10px; background:var(--brand-soft); color:var(--brand-text); }

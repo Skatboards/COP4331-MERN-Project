@@ -1,9 +1,10 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom';
 import SiteHeader from './components/SiteHeader';
 import RequireRole from './components/RequireRole';
 import { useAuth } from './auth/useAuth';
 import { hasRole } from './auth/roles';
+import { SignInPromptContext, type SignInReason } from './auth/signInPrompt';
 import './App.css';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -65,6 +66,10 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const [signInOpen, setSignInOpen] = useState(urlAuthNotice);
+  const [signInReason, setSignInReason] = useState<SignInReason | undefined>();
+  // What to do once the player signs in from the prompt (e.g. open Share)
+  const afterSignIn = useRef<(() => void) | null>(null);
+  const signedInFromPrompt = useRef(false);
   const verificationNotice = urlAuthNotice ? getAuthNotice(searchParams) : '';
 
   useEffect(() => {
@@ -79,10 +84,26 @@ export default function App() {
     }
   }, [theme]);
 
-  const openSignIn = useCallback(() => {
+  const openSignIn = useCallback((reason?: SignInReason, then?: () => void) => {
     setMenuOpen(false);
+    setSignInReason(reason);
+    afterSignIn.current = then ?? null;
+    signedInFromPrompt.current = false;
     setSignInOpen(true);
   }, []);
+
+  // Run the follow-up once the signed-in user has arrived
+  useEffect(() => {
+    if (!user || !afterSignIn.current) return;
+    const then = afterSignIn.current;
+    afterSignIn.current = null;
+    then();
+  }, [user]);
+
+  const loginFromPrompt = useCallback(async (loginName: string, password: string) => {
+    await login(loginName, password);
+    signedInFromPrompt.current = true;
+  }, [login]);
 
   function accountAction() {
     setMenuOpen(false);
@@ -91,12 +112,14 @@ export default function App() {
       setSignInOpen(false);
       navigate('/', { replace: true });
     } else {
-      setSignInOpen(true);
+      openSignIn();
     }
   }
 
   function closeSignIn() {
     setSignInOpen(false);
+    // Closed without signing in: drop the follow-up
+    if (!signedInFromPrompt.current) afterSignIn.current = null;
     const cleanParams = new URLSearchParams(searchParams);
     cleanParams.delete('verified');
     cleanParams.delete('passwordReset');
@@ -105,6 +128,7 @@ export default function App() {
   }
 
   return (
+    <SignInPromptContext.Provider value={openSignIn}>
     <div className="app-shell" data-theme={theme} data-high-contrast={highContrast}>
       <SiteHeader
         username={user?.username ?? 'Sign in'}
@@ -125,7 +149,7 @@ export default function App() {
           <Route path="/play" element={<HomePage />} />
           <Route path="/archive" element={<ArchivePage onSignIn={openSignIn} />} />
           <Route path="/archive/:seed" element={<ArchiveBoardPage />} />
-          <Route path="/settings" element={<SettingsPage onSignIn={openSignIn} highContrast={highContrast} onHighContrastChange={setHighContrast} />} />
+          <Route path="/settings" element={<SettingsPage onSignIn={() => openSignIn()} highContrast={highContrast} onHighContrastChange={setHighContrast} />} />
           <Route path="/reset-password" element={<PasswordResetPage />} />
           <Route path="/admin" element={<RequireRole min="admin"><AdminPage /></RequireRole>} />
           {import.meta.env.DEV && DevComponentsPage && DevColorsPage && (
@@ -142,14 +166,16 @@ export default function App() {
         {signInOpen && (
           <SignInDialog
             onClose={closeSignIn}
-            onLogin={login}
+            onLogin={loginFromPrompt}
             onRegister={register}
             onResendVerification={resendVerification}
             onRequestPasswordReset={requestPasswordReset}
             verificationNotice={verificationNotice}
+            reason={signInReason}
           />
         )}
       </Suspense>
     </div>
+    </SignInPromptContext.Provider>
   );
 }
