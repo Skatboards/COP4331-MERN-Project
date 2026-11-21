@@ -1,7 +1,15 @@
-import { Link } from 'react-router-dom';
+import { useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import ScoreCard from '../components/ScoreCard';
-
-type LandingPageProps = { onSignIn: () => void; isAuthenticated: boolean };
+import BoardPreview from '../components/BoardPreview';
+import DifficultyBadge from '../components/DifficultyBadge';
+import Icon, { type IconName } from '../components/Icon';
+import { useBoardStats } from '../hooks/useBoardStats';
+import { useSignInPrompt } from '../auth/signInPrompt';
+import { boardDifficulty } from '../game/difficulty.ts';
+import { generateBoard } from '../game/minesweeper.ts';
+import { formatDate, todayKey, todaySeed } from '../game/dates.ts';
+import { solvedByLabel } from '../game/share.ts';
 
 const rules = [
   { title: 'Starting', copy: 'The board automatically reveals today\'s starting area.' },
@@ -11,23 +19,48 @@ const rules = [
   { title: 'Winning', copy: 'Reveal every safe tile to win.' },
 ];
 
-const previewTiles = Array.from({ length: 25 }, () => '');
+const perks: { icon: IconName; title: string; copy: string }[] = [
+  { icon: 'flame', title: 'Build a streak', copy: 'Clear a board every day and watch your streak grow. Miss one and you can still catch up from the archive.' },
+  { icon: 'chart', title: 'Track your efficiency', copy: 'See your win rate, best score and where you rank against every other sweeper.' },
+  { icon: 'shuffle', title: 'Play past boards', copy: 'Pull up any day since launch, or try a random one.' },
+];
 
-export default function LandingPage({ onSignIn, isAuthenticated }: LandingPageProps) {
+// Home for signed-out visitors
+export default function LandingPage() {
+  const openSignIn = useSignInPrompt();
+  const navigate = useNavigate();
+  const seed = todaySeed();
+  const { minClicks, difficulty } = useMemo(() => boardDifficulty(generateBoard(seed)), [seed]);
+  const stats = useBoardStats(seed);
+
   return (
     <main className="landing-page">
-      <section className="landing-hero">
-        <div className="landing-actions">
-          <Link className="landing-board-link" to="/play" aria-label="Play today’s puzzle">
-            <span className="landing-preview-board" aria-hidden="true">
-              {previewTiles.map((value, index) => (
-                <span key={index} className="landing-preview-tile">{value}</span>
-              ))}
-            </span>
-            <span className="landing-board-label">Play today’s puzzle <span aria-hidden="true">→</span></span>
-          </Link>
-          {!isAuthenticated && <button className="landing-login-button" type="button" onClick={onSignIn}>Sign in</button>}
+      <section className="landing-hero-card" aria-labelledby="hero-title">
+        <div className="landing-hero-copy">
+          <span className="eyebrow">DAILY MINESWEEPER · {formatDate(todayKey(), 'weekdayLong').toUpperCase()}</span>
+          <h1 id="hero-title">One board a day.<br />The same board for everyone.</h1>
+          <p className="landing-lede">Clear today’s 16 × 16 field in as few clicks as you can, then see how you stack up.</p>
+          <DifficultyBadge difficulty={difficulty} minClicks={minClicks} />
+          <p className="solved-by">Solved by <strong>{solvedByLabel(stats)}</strong> {stats?.totalCompletions === 1 ? 'player' : 'players'} today.</p>
+          <div className="landing-cta">
+            <Link className="primary-button icon-button" to="/play">Play today’s puzzle <Icon name="arrowRight" /></Link>
+            <button className="secondary-button icon-button" type="button" onClick={() => openSignIn('share', () => navigate('/play'))}><Icon name="share" />Share</button>
+            <button className="landing-login-button" type="button" onClick={() => openSignIn()}>Sign in</button>
+          </div>
         </div>
+        <Link className="landing-preview-link" to="/play" aria-label="Play today’s puzzle">
+          <BoardPreview seed={seed} />
+        </Link>
+      </section>
+
+      <section className="perk-grid" aria-label="Why sign in">
+        {perks.map((perk) => (
+          <article className="perk-card" key={perk.title}>
+            <span className="perk-icon"><Icon name={perk.icon} size={20} /></span>
+            <h2>{perk.title}</h2>
+            <p>{perk.copy}</p>
+          </article>
+        ))}
       </section>
 
       <section className="rules-section" aria-labelledby="rules-title">
