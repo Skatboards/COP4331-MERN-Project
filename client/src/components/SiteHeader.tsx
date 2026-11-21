@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 
 type SiteHeaderProps = {
   username: string;
@@ -18,6 +18,10 @@ export default function SiteHeader({ username, isAuthenticated, showAdmin = fals
   return (
     <header className="topbar">
       <Link className="wordmark" to="/" aria-label="Sweeple home" onClick={onMenuClose}>Sweeple<span>.</span></Link>
+      <nav className="main-nav" aria-label="Main">
+        <NavLink to="/play" onClick={onMenuClose}>Today</NavLink>
+        <NavLink to="/archive" onClick={onMenuClose}>Archive</NavLink>
+      </nav>
       <div className="header-actions">
         <button
           className="theme-toggle"
