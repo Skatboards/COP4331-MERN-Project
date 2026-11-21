@@ -2,6 +2,8 @@ import { useState } from 'react';
 import BoardPlaceholder from '../../components/BoardPlaceholder';
 import Modal from '../../components/Modal';
 import DifficultyBadge from '../../components/DifficultyBadge';
+import StatTile from '../../components/StatTile';
+import CompareBars from '../../components/CompareBars';
 import Icon from '../../components/Icon';
 
 export default function DevComponentsPage() {
@@ -35,7 +37,16 @@ export default function DevComponentsPage() {
           <button className="icon-only-button" type="button" aria-label="Next"><Icon name="chevronRight" /></button>
           <span className="solved-by">Solved by <strong>1,531</strong> players</span>
         </div>
-        <p className="dev-reference-note">Also: <code>GameView</code>, <code>ShareDialog</code>, and <code>ScoreCard</code> with <code>seed</code> or <code>tabs</code>.</p>
+        <div className="dev-component-sample">
+          <div className="stat-grid" style={{ width: '100%' }}>
+            <StatTile label="Best efficiency" value="96%" />
+            <StatTile label="Efficiency rank" value="#2" hint="of 10" />
+          </div>
+          <div style={{ width: '100%' }}>
+            <CompareBars rows={[{ label: 'Efficiency', you: 91, average: 69, max: 100, format: (v) => `${v}%` }]} />
+          </div>
+        </div>
+        <p className="dev-reference-note">Also: <code>GameView</code>, <code>ShareDialog</code>, <code>ArchiveCalendar</code>, and <code>ScoreCard</code> with <code>seed</code> or <code>tabs</code>.</p>
       </section>
 
       <section className="dev-reference-section" aria-labelledby="roles-title">

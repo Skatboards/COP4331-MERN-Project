@@ -147,7 +147,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPage onSignIn={openSignIn} isAuthenticated={Boolean(user)} />} />
           <Route path="/play" element={<HomePage />} />
-          <Route path="/archive" element={<ArchivePage onSignIn={openSignIn} />} />
+          <Route path="/archive" element={<ArchivePage />} />
           <Route path="/archive/:seed" element={<ArchiveBoardPage />} />
           <Route path="/settings" element={<SettingsPage onSignIn={() => openSignIn()} highContrast={highContrast} onHighContrastChange={setHighContrast} />} />
           <Route path="/reset-password" element={<PasswordResetPage />} />
