@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Pressable, View, Text, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../constants/sweeple';
-import { login } from '../api/auth'
+import { useAuth } from '../auth/AuthProvider';
 import { Link } from 'expo-router';
 import { router } from 'expo-router';
 
@@ -11,19 +11,18 @@ export default function SignInScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [welcome, setWelcome] = useState('');
+  const {login} = useAuth();
   async function onSignIn(){
     setError('');
     setLoading(true);
     try {
-      const {user} = await login(loginName, password);
-      setWelcome(`signed in as ${user.username}`);
-      } catch(e){
-        setError(e instanceof Error ? e.message : 'Something Went Wrong.');
-      } finally{
-        setLoading(false)
-      }
-
+      await login(loginName, password);
+      router.back();
+    } catch (e) {
+      setError (e instanceof Error ? e.message : 'something went wrong.');
+    } finally {
+      setLoading(false);
+    }
   } 
   return (
     <SafeAreaView style={styles.screen}>
@@ -54,7 +53,7 @@ export default function SignInScreen() {
           onChangeText = {setPassword}
           />
           {error ? <Text style={styles.error}>{error}</Text>: null}
-          {welcome ? <Text style={styles.welcome}>{welcome}</Text> : null}
+          
           <Pressable style = {styles.button}
           onPress = {onSignIn}>
             <Text style={styles.buttonText}>Sign in</Text>
@@ -101,7 +100,6 @@ const styles = StyleSheet.create({
   },
   buttonText: {fontSize: 17, fontWeight: '700', color: colors.text},
   error: { color: colors.error, fontSize: 14, marginTop: 8},
-  welcome: {color: colors.brandText, fontSize: 14, fontWeight: '600', marginTop: 8},
   Link: { textAlign: 'center', marginTop: 16, fontSize: 14, color: colors.textSoft},
   linkStrong: { color: colors.brandText, fontWeight: '700'},
   backText: { fontSize: 15, fontWeight: '600', color: colors.brandText},

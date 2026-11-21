@@ -2,6 +2,7 @@ import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../constants/sweeple';
 import { Link } from 'expo-router';
+import { useAuth } from '../auth/AuthProvider';
 
 const previewTiles = Array.from({ length: 25 });
 const rules = [
@@ -12,6 +13,7 @@ const rules = [
     { title: 'Winning', copy: 'Reveal every safe tile to win.'},  
 ];
 export default function LandingScreen() {
+    const {user, loading } = useAuth();
     return (
         <SafeAreaView style={styles.screen}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -34,7 +36,17 @@ export default function LandingScreen() {
                         </Text>
                     </Pressable>
                 </Link>
-                <Link href="/sign-in" style={styles.signIn}>Sign in</Link>
+                {loading ? null : user ? (
+                    <Text style = {styles.signedIn}>
+                        Signed in as <Text style = {styles.signedInName}>{user.username}</Text>
+                    </Text>
+                ) : (
+                    <Link href="/sign-in" style = {styles.signedInName}>Sign in</Link>
+                )}
+                <View style = {styles.navRow}>
+                    <Link href="/archive" style = {styles.navLink}>Archive</Link>
+                    <Link href="/settings" style = {styles.navLink}>Settings</Link>
+                </View>
                 <View style = {styles.rules}>
                     <Text style = {styles.rulesTitle}>How to play</Text>
                     {rules.map((rule, index) => (
@@ -75,4 +87,8 @@ const styles = StyleSheet.create({
     ruleNumber: { fontSize: 11, fontWeight: '800', letterSpacing: 1, color: colors.brand},
     ruleTitle: { fontSize: 15, fontWeight: '700', color: colors.text},
     ruleCopy: { fontSize: 13, lineHeight: 19, color: colors.muted},
+    signedIn: {alignSelf: 'center', marginTop: 12, padding: 8, fontSize: 14, color: colors.textSoft},
+    signedInName: { fontWeight: '700', color: colors.brandText },
+    navRow: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 4 },
+    navLink: { padding: 8, fontSize: 14, fontWeight: '700', color: colors.text },
 });

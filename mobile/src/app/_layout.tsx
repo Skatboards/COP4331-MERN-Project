@@ -1,5 +1,13 @@
 import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { AuthProvider } from '../auth/AuthProvider';
 
 export default function RootLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return(
+    <GestureHandlerRootView style={{ flex: 1 }}>
+       <AuthProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </AuthProvider>
+    </GestureHandlerRootView>
+  );
 }
