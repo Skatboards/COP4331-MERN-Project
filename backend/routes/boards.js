@@ -2,6 +2,7 @@ const express = require('express');
 const { User, Board, BoardAttempt } = require('../models');
 const requireAuth = require('../middleware/auth');
 const { readLimit } = require('./users');
+const { isOnTime, rejectBlockedSeed } = require('../lib/seeds');
 
 const router = express.Router();
 
@@ -10,6 +11,48 @@ const SEED_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 const BOARD_FIELDS =
   'seed totalAttempts totalCompletions globalCompletionPercentage averageClicks averageEfficiency createdAt';
+
+const MODES = ['daily', 'archive', 'random'];
+// Longest game time accepted, in ms (a day)
+const MAX_TIME_MS = 24 * 60 * 60 * 1000;
+// Upper bound on board cells, so stored game states stay small
+const MAX_CELLS = 4096;
+
+function isCellList(value) {
+  return Array.isArray(value) && value.length <= MAX_CELLS &&
+    value.every((n) => Number.isInteger(n) && n >= 0 && n < MAX_CELLS);
+}
+
+function isTime(value) {
+  return Number.isInteger(value) && value >= 0 && value <= MAX_TIME_MS;
+}
+
+// { revealed, flags, explodedAt } as a finished game left the board
+function readFinalState(value) {
+  if (value === undefined || value === null) return { ok: true, finalState: null };
+  if (typeof value !== 'object' || !isCellList(value.revealed) || !isCellList(value.flags) ||
+      !(value.explodedAt === null || value.explodedAt === undefined ||
+        (Number.isInteger(value.explodedAt) && value.explodedAt >= 0 && value.explodedAt < MAX_CELLS))) {
+    return { ok: false };
+  }
+  return {
+    ok: true,
+    finalState: { revealed: value.revealed, flags: value.flags, explodedAt: value.explodedAt ?? null }
+  };
+}
+
+// A board nobody has finished yet, with every stat at zero
+function emptyBoard(seed) {
+  return {
+    seed,
+    totalAttempts: 0,
+    totalCompletions: 0,
+    globalCompletionPercentage: 0,
+    averageClicks: 0,
+    averageEfficiency: 0,
+    createdAt: null
+  };
+}
 
 // GET /api/boards/:seed/progress - Resume this user's game
 router.get('/:seed/progress', requireAuth, async (req, res) => {
@@ -20,7 +63,14 @@ router.get('/:seed/progress', requireAuth, async (req, res) => {
   if (attempt.status !== 'in_progress') {
     return res.json({
       game: null,
-      played: { status: attempt.status, clicks: attempt.clicks }
+      played: {
+        status: attempt.status,
+        clicks: attempt.clicks,
+        efficiency: attempt.efficiency,
+        completionPercentage: attempt.status === 'won' ? 100 : attempt.completionPercentage,
+        timeMs: attempt.timeMs ?? null,
+        finalState: attempt.finalState ?? null
+      }
     });
   }
   res.json({ game: attempt.gameState ?? null, played: null });
@@ -30,12 +80,14 @@ router.get('/:seed/progress', requireAuth, async (req, res) => {
 router.post('/:seed/progress', requireAuth, async (req, res) => {
   const game = req.body?.game;
   if (!game || game.seed !== req.params.seed || !['playing', 'won', 'lost'].includes(game.status) ||
-      !Array.isArray(game.revealed) || !Array.isArray(game.flags) ||
+      !isCellList(game.revealed) || !isCellList(game.flags) ||
       !Number.isInteger(game.clicks) || game.clicks < 0 ||
       typeof req.body.completionPercentage !== 'number' || req.body.completionPercentage < 0 || req.body.completionPercentage > 100 ||
-      !(game.explodedAt === null || Number.isInteger(game.explodedAt))) {
+      !(game.explodedAt === null || Number.isInteger(game.explodedAt)) ||
+      !(game.elapsedMs === undefined || (typeof game.elapsedMs === 'number' && game.elapsedMs >= 0 && game.elapsedMs <= MAX_TIME_MS))) {
     return res.status(400).json({ error: 'Invalid game state' });
   }
+  if (rejectBlockedSeed(req.params.seed, res)) return;
   const board = await Board.findOneAndUpdate(
     { seed: req.params.seed }, { $setOnInsert: { seed: req.params.seed } },
     { upsert: true, returnDocument: 'after' }
@@ -94,26 +146,40 @@ router.get('/', async (req, res) => {
   res.json({ boards });
 });
 
-// GET /api/boards/:seed - One board's global stats
+// GET /api/boards/:seed - One board's global stats. A board nobody has
+// finished yet returns zeroed stats, so the page can show "Solved by 0".
 router.get('/:seed', async (req, res) => {
   const board = await Board.findOne({ seed: req.params.seed }).select(BOARD_FIELDS);
-  if (!board) {
-    return res.status(404).json({ error: 'Board not found' });
-  }
-  res.json({ board });
+  res.json({ board: board ?? emptyBoard(req.params.seed) });
 });
 
-// GET /api/boards/:seed/attempts - Best finished games on a board
+// Leaderboard orders for GET /api/boards/:seed/attempts
+const ATTEMPT_SORTS = {
+  // Won first, then fewest clicks, then fastest (untimed games last)
+  result: [{ $sort: { completed: -1, clicks: 1, timeSort: 1, completedAt: 1 } }],
+  efficiency: [{ $sort: { completed: -1, efficiency: -1, clicks: 1, timeSort: 1 } }]
+};
+
+// GET /api/boards/:seed/attempts?sort=result|efficiency - Best finished
+// games on a board (an empty list when nobody has played it)
 router.get('/:seed/attempts', async (req, res) => {
+  const sort = req.query.sort ?? 'result';
+  if (!Object.hasOwn(ATTEMPT_SORTS, sort)) {
+    return res.status(400).json({ error: `sort must be one of: ${Object.keys(ATTEMPT_SORTS).join(', ')}` });
+  }
   const board = await Board.findOne({ seed: req.params.seed });
   if (!board) {
-    return res.status(404).json({ error: 'Board not found' });
+    return res.json({ seed: req.params.seed, attempts: [] });
   }
 
-  const attempts = await BoardAttempt.find({ boardId: board._id, status: { $ne: 'in_progress' } })
-    .sort({ completed: -1, efficiency: -1, clicks: 1 })
-    .limit(readLimit(req.query.limit, 10, 50))
-    .populate('userId', 'username');
+  const rows = await BoardAttempt.aggregate([
+    { $match: { boardId: board._id, status: { $ne: 'in_progress' } } },
+    { $addFields: { timeSort: { $ifNull: ['$timeMs', MAX_TIME_MS + 1] } } },
+    ...ATTEMPT_SORTS[sort],
+    { $limit: readLimit(req.query.limit, 10, 50) },
+    { $project: { gameState: 0, finalState: 0 } }
+  ]);
+  const attempts = await BoardAttempt.populate(rows, { path: 'userId', select: 'username' });
 
   res.json({
     seed: board.seed,
@@ -123,6 +189,9 @@ router.get('/:seed/attempts', async (req, res) => {
       completed: attempt.completed,
       efficiency: attempt.efficiency,
       status: attempt.status,
+      completionPercentage: attempt.status === 'won' ? 100 : attempt.completionPercentage,
+      timeMs: attempt.timeMs ?? null,
+      onTime: attempt.onTime ?? false,
       completedAt: attempt.completedAt
     }))
   });
@@ -131,8 +200,8 @@ router.get('/:seed/attempts', async (req, res) => {
 // POST /api/boards/:seed/attempts - Record the logged-in user's finished game
 // on a board (one per user per board) and update the board and user stats
 router.post('/:seed/attempts', requireAuth, async (req, res) => {
-  const { clicks, status } = req.body ?? {};
-  let { efficiency } = req.body ?? {};
+  const { clicks, status, timeMs } = req.body ?? {};
+  let { efficiency, mode } = req.body ?? {};
   let { completionPercentage } = req.body ?? {};
 
   if (!Number.isInteger(clicks) || clicks < 0) {
@@ -154,6 +223,18 @@ router.post('/:seed/attempts', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'completionPercentage must be a number from 0 to 100' });
   }
   if (status === 'won') completionPercentage = 100;
+  if (timeMs !== undefined && timeMs !== null && !isTime(timeMs)) {
+    return res.status(400).json({ error: 'timeMs must be a whole number of milliseconds, up to a day' });
+  }
+  mode = mode ?? 'daily';
+  if (!MODES.includes(mode)) {
+    return res.status(400).json({ error: `mode must be one of: ${MODES.join(', ')}` });
+  }
+  const final = readFinalState(req.body?.finalState);
+  if (!final.ok) {
+    return res.status(400).json({ error: 'finalState must hold revealed and flags cell lists and explodedAt' });
+  }
+  if (rejectBlockedSeed(req.params.seed, res)) return;
 
   if (!(await User.exists({ _id: req.userId }))) {
     return res.status(404).json({ error: 'User not found' });
@@ -180,6 +261,10 @@ router.post('/:seed/attempts', requireAuth, async (req, res) => {
       completionPercentage,
       status,
       completedAt: new Date(),
+      timeMs: timeMs ?? null,
+      onTime: isOnTime(req.params.seed),
+      mode,
+      finalState: final.finalState,
       gameState: null
       } },
       { upsert: true, returnDocument: 'after' }
@@ -246,6 +331,10 @@ router.post('/:seed/attempts', requireAuth, async (req, res) => {
       completed: attempt.completed,
       efficiency: attempt.efficiency,
       status: attempt.status,
+      completionPercentage: attempt.completionPercentage,
+      timeMs: attempt.timeMs,
+      onTime: attempt.onTime,
+      mode: attempt.mode,
       completedAt: attempt.completedAt
     },
     board: await Board.findById(board._id).select(BOARD_FIELDS)

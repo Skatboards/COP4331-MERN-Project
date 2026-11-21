@@ -22,6 +22,7 @@ tests {
 }
 
 docs {
-  Best finished games on a board. Uses env `seed`. Returns 404 if the board has
-  never been played.
+  Best finished games on a board. Uses env `seed`. Returns 200 with an empty
+  list if the board has never been played. Optional query: `limit`, and `sort`
+  (`result` or `efficiency`).
 }

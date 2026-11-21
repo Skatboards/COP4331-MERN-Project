@@ -59,7 +59,8 @@ function publicUser(user) {
     providers: (user.oauthAccounts || []).map((account) => account.provider),
     totalClicks: user.totalClicks,
     boardsCompleted: user.boardsCompleted,
-    efficiency: user.efficiency
+    efficiency: user.efficiency,
+    createdAt: user.createdAt
   };
 }
 

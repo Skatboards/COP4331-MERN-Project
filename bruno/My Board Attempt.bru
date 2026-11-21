@@ -1,0 +1,33 @@
+meta {
+  name: My Board Attempt
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{baseUrl}}/api/users/me/attempts/{{seed}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("returns the game with its final board", function () {
+    const attempt = res.getBody().attempt;
+    expect(attempt).to.not.equal(null);
+    expect(attempt.finalState).to.be.an("object");
+  });
+}
+
+docs {
+  The logged-in user's game on one board, including `finalState` (the board as
+  the game ended). Run Login and Record Attempt first; `seed` comes from Record
+  Attempt. Returns `{ attempt: null }` for a board the user hasn't played.
+}
