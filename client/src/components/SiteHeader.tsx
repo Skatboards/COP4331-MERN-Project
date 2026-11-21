@@ -21,6 +21,7 @@ export default function SiteHeader({ username, isAuthenticated, showAdmin = fals
       <nav className="main-nav" aria-label="Main">
         <NavLink to="/play" onClick={onMenuClose}>Today</NavLink>
         <NavLink to="/archive" onClick={onMenuClose}>Archive</NavLink>
+        <NavLink to="/random" onClick={onMenuClose}>Random board</NavLink>
       </nav>
       <div className="header-actions">
         <button

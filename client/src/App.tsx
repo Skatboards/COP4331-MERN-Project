@@ -9,6 +9,7 @@ import './App.css';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
+const RandomBoardPage = lazy(() => import('./pages/RandomBoardPage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
 const ArchiveBoardPage = lazy(() => import('./pages/ArchiveBoardPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
@@ -149,6 +150,8 @@ export default function App() {
           <Route path="/play" element={<HomePage />} />
           <Route path="/archive" element={<ArchivePage />} />
           <Route path="/archive/:seed" element={<ArchiveBoardPage />} />
+          <Route path="/random" element={<RandomBoardPage />} />
+          <Route path="/random/:seed" element={<RandomBoardPage />} />
           <Route path="/settings" element={<SettingsPage onSignIn={() => openSignIn()} highContrast={highContrast} onHighContrastChange={setHighContrast} />} />
           <Route path="/reset-password" element={<PasswordResetPage />} />
           <Route path="/admin" element={<RequireRole min="admin"><AdminPage /></RequireRole>} />
