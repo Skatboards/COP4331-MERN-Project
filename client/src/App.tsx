@@ -9,6 +9,7 @@ import './App.css';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const LandingPage = lazy(() => import('./pages/LandingPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const RandomBoardPage = lazy(() => import('./pages/RandomBoardPage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
 const ArchiveBoardPage = lazy(() => import('./pages/ArchiveBoardPage'));
@@ -146,7 +147,7 @@ export default function App() {
       {sessionError && <p className="session-banner" role="status">{sessionError}</p>}
       <Suspense fallback={<main className="home-content" aria-busy="true" />}>
         <Routes>
-          <Route path="/" element={<LandingPage onSignIn={openSignIn} isAuthenticated={Boolean(user)} />} />
+          <Route path="/" element={user ? <DashboardPage /> : <LandingPage />} />
           <Route path="/play" element={<HomePage />} />
           <Route path="/archive" element={<ArchivePage />} />
           <Route path="/archive/:seed" element={<ArchiveBoardPage />} />
