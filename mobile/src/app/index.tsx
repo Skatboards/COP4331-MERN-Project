@@ -13,7 +13,7 @@ const rules = [
     { title: 'Winning', copy: 'Reveal every safe tile to win.'},  
 ];
 export default function LandingScreen() {
-    const {user, loading } = useAuth();
+    const {user} = useAuth();
     return (
         <SafeAreaView style={styles.screen}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
@@ -36,7 +36,7 @@ export default function LandingScreen() {
                         </Text>
                     </Pressable>
                 </Link>
-                {loading ? null : user ? (
+                {user ? (
                     <Text style = {styles.signedIn}>
                         Signed in as <Text style = {styles.signedInName}>{user.username}</Text>
                     </Text>

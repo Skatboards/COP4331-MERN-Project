@@ -1,4 +1,5 @@
 const BASE_URL = 'Https://sweeple.natreese.dev/api';
+const TIMEOUT_MS = 10000
 
 export type ApiErrorBody = {
     error?: string;
@@ -27,16 +28,20 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     const headers = new Headers({ Accept: 'application/json'});
     if (options.body !== undefined) headers.set('Content-Type', 'application/json');
   if (options.token) headers.set('Authorization', `Bearer ${options.token}`);
-
+  const controller = new AbortController();
+  const timer = setTimeout(()=> controller.abort(), TIMEOUT_MS);
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}${path}`, {
       method: options.method ?? 'GET',
       headers,
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: controller.signal,
     });
   } catch {
     throw new ApiError('Could not reach the server. Check your connection and try again.', 0);
+  } finally{
+    clearTimeout(timer)
   }
 
   const data = await response.json().catch(() => ({})) as ApiErrorBody;
