@@ -41,7 +41,9 @@ export default function LandingScreen() {
                         Signed in as <Text style = {styles.signedInName}>{user.username}</Text>
                     </Text>
                 ) : (
-                    <Link href="/sign-in" style = {styles.signedInName}>Sign in</Link>
+                    <View style = {styles.signInRow}>
+                        <Link href="/sign-in" style = {styles.signIn}>Sign in</Link>
+                    </View>
                 )}
                 <View style = {styles.navRow}>
                     <Link href="/archive" style = {styles.navLink}>Archive</Link>
@@ -80,7 +82,6 @@ const styles = StyleSheet.create({
         backgroundColor: colors.cell,
     },
     cardLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
-    signIn : {alignSelf: 'center', marginTop: 12, padding: 8, fontSize: 14, fontWeight: '700', color: colors.textSoft},
     rules: { marginTop: 28, paddingTop: 24, borderTopWidth: 1, borderTopColor: colors.line, gap: 10},
     rulesTitle: {fontSize: 23, fontWeight: '800', letterSpacing: -0.6, color: colors.text, marginBottom: 4},
     ruleCard: { padding: 16, borderWidth: 1, borderColor: colors.line, borderRadius: 13, backgroundColor: colors.surface, gap: 4},
@@ -91,4 +92,12 @@ const styles = StyleSheet.create({
     signedInName: { fontWeight: '700', color: colors.brandText },
     navRow: { flexDirection: 'row', justifyContent: 'center', gap: 24, marginTop: 4 },
     navLink: { padding: 8, fontSize: 14, fontWeight: '700', color: colors.text },
+    signInRow: { alignItems: 'center', marginTop: 12 },
+    signIn: {
+        padding: 8,
+        fontSize: 14,
+        fontWeight: '700',
+        color: colors.textSoft,
+    },
+
 });
