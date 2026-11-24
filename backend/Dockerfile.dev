@@ -1,0 +1,22 @@
+FROM node:24-bookworm-slim
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates libcurl4 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY server.js ./server.js
+COPY lib ./lib
+COPY middleware ./middleware
+COPY models ./models
+COPY routes ./routes
+COPY scripts/set-role.js ./scripts/set-role.js
+COPY tests ./tests
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev:docker"]
