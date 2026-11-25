@@ -10,6 +10,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY server.js ./server.js
+COPY game ./game
 COPY lib ./lib
 COPY middleware ./middleware
 COPY models ./models

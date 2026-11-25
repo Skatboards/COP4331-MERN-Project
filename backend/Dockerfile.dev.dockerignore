@@ -2,6 +2,8 @@
 !package.json
 !package-lock.json
 !server.js
+!game/
+!game/**
 !lib/
 !lib/**
 !middleware/
