@@ -199,6 +199,8 @@ All requests and responses are JSON. The full description is in [backend/openapi
 | `GET` | `/api/boards` | Most recent boards |
 | `GET` | `/api/boards/:seed` | One board's global stats |
 | `GET` | `/api/boards/:seed/attempts` | Best finished games on a board |
+| `GET` | `/api/boards/today` | Today's board layout by the server's date (no login) |
+| `GET` | `/api/boards/:seed/layout` | Layout of today's or an earlier day's board; `404` for later days |
 | `POST` | `/api/boards/:seed/attempts` | *login* Record a finished game `{ clicks, status: "won" \| "lost", efficiency }`; one per user per board |
 | `GET` | `/api/admin/users?q=&role=&page=` | *admin* Accounts you can see (admins: users only; site admins: everyone) |
 | `GET` | `/api/admin/users/:id` | *admin* One account |
