@@ -38,6 +38,8 @@ services:
       PORT: 3000
       # First daily board; earlier boards can't be played
       LAUNCH_DATE: ${LAUNCH_DATE:-2026-10-15}
+      # Time zone that determines when the shared daily board rolls over
+      BOARD_TIMEZONE: ${BOARD_TIMEZONE:-America/New_York}
       MONGODB_URI: mongodb://mongo:27017/${MONGO_DATABASE:-GameDB}
       JWT_SECRET: ${JWT_SECRET:-}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
