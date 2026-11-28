@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  LAUNCH_DATE, addDays, formatDuration, isPlayableDate, randomPastDate, seedDate,
+  LAUNCH_DATE, addDays, formatDuration, isPlayableDate, randomPastDate, seedDate, todayKey,
 } from '../src/game/dates.ts';
 import { dayStatus, firstPlayableDay, monthRange, shiftMonth } from '../src/game/calendar.ts';
 import type { Attempt } from '../src/api/types.ts';
@@ -18,6 +18,11 @@ test('only days from launch to today are playable', () => {
   assert.equal(isPlayableDate('2026-11-17', now), true);
   assert.equal(isPlayableDate('2026-11-18', now), false);
   assert.equal(isPlayableDate(addDays(LAUNCH_DATE, -1), now), false);
+});
+
+test('today follows the configured shared board time zone', () => {
+  assert.equal(todayKey(new Date('2026-11-13T04:59:00Z')), '2026-11-12');
+  assert.equal(todayKey(new Date('2026-11-13T05:00:00Z')), '2026-11-13');
 });
 
 test('random past days are before today and skip played days', () => {

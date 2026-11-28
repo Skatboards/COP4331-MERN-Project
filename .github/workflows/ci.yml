@@ -84,6 +84,8 @@ jobs:
       CLIENT_PORT: ${{ vars.CLIENT_PORT || '5173' }}
       BACKEND_PORT: ${{ vars.BACKEND_PORT || '3000' }}
       MONGO_DATABASE: ${{ vars.MONGO_DATABASE || 'GameDB' }}
+      LAUNCH_DATE: ${{ vars.LAUNCH_DATE || '2026-10-15' }}
+      BOARD_TIMEZONE: ${{ vars.BOARD_TIMEZONE || 'America/New_York' }}
       APP_URL: http://localhost:5173
       JWT_SECRET: ci-only-jwt-secret-not-for-production
       JWT_EXPIRES_IN: 1d
@@ -140,6 +142,9 @@ jobs:
         with:
           context: ./client
           file: ./client/Dockerfile.prod
+          build-args: |
+            VITE_LAUNCH_DATE=${{ env.LAUNCH_DATE }}
+            VITE_BOARD_TIMEZONE=${{ env.BOARD_TIMEZONE }}
           load: true
           tags: sweeple-client:${{ env.IMAGE_TAG }}
           cache-from: type=gha,scope=client-prod

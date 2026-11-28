@@ -9,6 +9,8 @@ services:
       DOMAIN: ${DOMAIN:-}
       # First daily board; the client reads it as VITE_LAUNCH_DATE
       VITE_LAUNCH_DATE: ${LAUNCH_DATE:-2026-10-15}
+      # Shared daily-board rollover; the client reads it as VITE_BOARD_TIMEZONE
+      VITE_BOARD_TIMEZONE: ${BOARD_TIMEZONE:-America/New_York}
     ports:
       - "${CLIENT_PORT:-5173}:5173"
     volumes:

@@ -48,11 +48,11 @@ function dayNumber(date) {
   return Math.round(Date.parse(`${date}T00:00:00Z`) / DAY_MS);
 }
 
-// Layouts are available for real daily seeds through the configured board day.
-// Unlike playBlock, this deliberately rejects every future board.
+// Layouts are available for real daily seeds from launch through the
+// configured board day. Unlike playBlock, this rejects every future board.
 function isLayoutAvailable(seed, now = new Date()) {
   const date = seedDate(seed);
-  return date !== null && date <= todayKey(now);
+  return date !== null && date >= launchDate() && date <= todayKey(now);
 }
 
 // Why a seed cannot be played right now: 'locked', 'before-launch', or null

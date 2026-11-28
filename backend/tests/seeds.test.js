@@ -52,14 +52,17 @@ describe('daily seed dates', () => {
 });
 
 describe('seed availability policies', () => {
-  test('offers layouts through today and rejects every future board', () => {
+  test('offers layouts from launch through today', () => {
     const now = new Date('2026-11-12T17:00:00Z');
-    assert.equal(isLayoutAvailable('daily-2026-11-12', now), true);
-    assert.equal(isLayoutAvailable('daily-2026-11-11', now), true);
-    assert.equal(isLayoutAvailable('daily-2026-11-13', now), false);
-    assert.equal(isLayoutAvailable('daily-2027-01-01', now), false);
-    assert.equal(isLayoutAvailable('daily-2026-02-30', now), false);
-    assert.equal(isLayoutAvailable('test-1', now), false);
+    withEnv('LAUNCH_DATE', '2026-10-15', () => {
+      assert.equal(isLayoutAvailable('daily-2026-11-12', now), true);
+      assert.equal(isLayoutAvailable('daily-2026-11-11', now), true);
+      assert.equal(isLayoutAvailable('daily-2026-10-14', now), false);
+      assert.equal(isLayoutAvailable('daily-2026-11-13', now), false);
+      assert.equal(isLayoutAvailable('daily-2027-01-01', now), false);
+      assert.equal(isLayoutAvailable('daily-2026-02-30', now), false);
+      assert.equal(isLayoutAvailable('test-1', now), false);
+    });
   });
 
   test('permits one UTC day ahead for play and rejects pre-launch boards', () => {
