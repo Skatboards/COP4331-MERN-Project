@@ -2,7 +2,7 @@ const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const { app, request, useTestDatabase, createLoggedInUser } = require('./helpers');
 const { Board, BoardAttempt } = require('../models');
-const { todaySeed } = require('../game/board');
+const { todaySeed } = require('../lib/seeds');
 
 // YYYY-MM-DD for a day relative to now (UTC)
 function day(offset = 0) {
