@@ -134,8 +134,8 @@ Add these non-sensitive values as **environment variables**:
 | `CLIENT_PORT` | Required host Nginx upstream port for the client | `5173` |
 | `BACKEND_PORT` | Required host Nginx upstream port for `/api` | `3001` |
 | `MONGO_DATABASE` | MongoDB database name; defaults to `GameDB` | `GameDB` |
-| `LAUNCH_DATE` | Optional first daily board date; defaults to `2026-10-15` | `2026-10-15` |
-| `BOARD_TIMEZONE` | Optional IANA time zone controlling the shared daily-board rollover; defaults to `America/New_York` | `America/New_York` |
+| `LAUNCH_DATE` | Optional first daily board date embedded in the client build and passed to the backend; defaults to `2026-10-15` | `2026-10-15` |
+| `BOARD_TIMEZONE` | Optional IANA time zone embedded in the client build and passed to the backend for the shared daily-board rollover; defaults to `America/New_York` | `America/New_York` |
 | `JWT_EXPIRES_IN` | Login-token lifetime accepted by `jsonwebtoken`; defaults to `1d` when omitted | `1d` |
 | `SITE_ADMIN_EMAILS` | Optional comma-separated verified account emails promoted to `siteadmin`; removing an address does not demote the account | `owner@example.com` |
 | `SMTP_HOST` | Optional SMTP host | `smtp.provider.example` or leave unset |

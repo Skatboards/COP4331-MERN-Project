@@ -181,8 +181,9 @@ describe('GET /api/boards/:seed/layout', () => {
     assert.equal(past.body.mines.length, 40);
   });
 
-  test('refuses future days, unknown seeds and bad dates', async () => {
+  test('refuses pre-launch and future days, unknown seeds and bad dates', async () => {
     const future = todaySeed(new Date(Date.now() + 48 * 60 * 60 * 1000));
+    await request(app).get('/api/boards/daily-2026-10-14/layout').expect(404);
     await request(app).get(`/api/boards/${future}/layout`).expect(404);
     await request(app).get('/api/boards/daily-2099-01-01/layout').expect(404);
     await request(app).get('/api/boards/daily-2026-02-30/layout').expect(404);

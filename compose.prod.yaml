@@ -4,6 +4,11 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile.prod
+      args:
+        # Vite embeds these values during the image build. Deployment Compose
+        # reads them from the protected environment file created by CI.
+        VITE_LAUNCH_DATE: ${LAUNCH_DATE:-2026-10-15}
+        VITE_BOARD_TIMEZONE: ${BOARD_TIMEZONE:-America/New_York}
     restart: unless-stopped
     ports:
       - "127.0.0.1:${CLIENT_PORT:?Set CLIENT_PORT}:5173"

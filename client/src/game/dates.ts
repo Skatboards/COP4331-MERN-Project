@@ -1,6 +1,8 @@
 // The first daily board; earlier days cannot be played
 export const LAUNCH_DATE: string =
   (import.meta.env?.VITE_LAUNCH_DATE as string | undefined) ?? '2026-10-15';
+export const BOARD_TIMEZONE: string =
+  (import.meta.env?.VITE_BOARD_TIMEZONE as string | undefined) ?? 'America/New_York';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -17,12 +19,14 @@ export function seedForDate(date: string): string {
   return `daily-${date}`;
 }
 
-// The player's local day, as YYYY-MM-DD
+// The shared board day in the configured board time zone, as YYYY-MM-DD
 export function todayKey(now = new Date()): string {
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: BOARD_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
 }
 
 export function todaySeed(now = new Date()): string {
