@@ -4,6 +4,7 @@ import Modal from '../../components/Modal';
 import DifficultyBadge from '../../components/DifficultyBadge';
 import StatTile from '../../components/StatTile';
 import CompareBars from '../../components/CompareBars';
+import BoardPreview from '../../components/BoardPreview';
 import Icon from '../../components/Icon';
 
 export default function DevComponentsPage() {
@@ -45,8 +46,9 @@ export default function DevComponentsPage() {
           <div style={{ width: '100%' }}>
             <CompareBars rows={[{ label: 'Efficiency', you: 91, average: 69, max: 100, format: (v) => `${v}%` }]} />
           </div>
+          <BoardPreview seed="daily-2026-11-12" />
         </div>
-        <p className="dev-reference-note">Also: <code>GameView</code>, <code>ShareDialog</code>, <code>ArchiveCalendar</code>, and <code>ScoreCard</code> with <code>seed</code> or <code>tabs</code>.</p>
+        <p className="dev-reference-note">Also: <code>GameView</code>, <code>ShareDialog</code>, <code>ArchiveCalendar</code>, <code>WeekStrip</code>, and <code>ScoreCard</code> with <code>seed</code> or <code>tabs</code>.</p>
       </section>
 
       <section className="dev-reference-section" aria-labelledby="roles-title">
