@@ -9,6 +9,8 @@ export interface GameState {
   clicks: number;
   status: GameStatus;
   explodedAt: number | null;
+  // Time spent playing, in ms; missing from games saved before the timer
+  elapsedMs?: number;
 }
 
 export function newGame(board: Board, seed: string): GameState {
@@ -88,7 +90,8 @@ export function parseSavedGame(raw: string | null, seed: string, cellCount: numb
       !Number.isInteger(v.clicks) ||
       (v.clicks as number) < 0 ||
       (v.status !== 'playing' && v.status !== 'won' && v.status !== 'lost') ||
-      !(v.explodedAt === null || (Number.isInteger(v.explodedAt) && okIndexes([v.explodedAt])))
+      !(v.explodedAt === null || (Number.isInteger(v.explodedAt) && okIndexes([v.explodedAt]))) ||
+      !(v.elapsedMs === undefined || (typeof v.elapsedMs === 'number' && Number.isFinite(v.elapsedMs) && v.elapsedMs >= 0))
     ) {
       return null;
     }

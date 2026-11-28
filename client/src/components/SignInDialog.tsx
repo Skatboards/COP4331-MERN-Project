@@ -4,6 +4,28 @@ import { ApiError } from '../api/client';
 import { getProviders } from '../api/auth';
 import type { Provider, RegistrationInput } from '../api/auth';
 import Modal from './Modal';
+import Icon, { type IconName } from './Icon';
+import type { SignInReason } from '../auth/signInPrompt';
+
+// Title, message and icon when the dialog opens for a feature that needs
+// an account
+const REASONS: Record<SignInReason, { title: string; copy: string; icon: IconName }> = {
+  share: {
+    title: 'Sign in to share',
+    copy: 'Your result is saved to your account, then you can copy it.',
+    icon: 'share',
+  },
+  archive: {
+    title: 'Sign in to open the archive',
+    copy: 'Past boards, missed days and your history live in your account.',
+    icon: 'calendar',
+  },
+  leaderboard: {
+    title: 'Sign in to see your rank',
+    copy: 'Your finished boards put you on the leaderboard next to everyone else.',
+    icon: 'trophy',
+  },
+};
 
 type DialogMode = 'login' | 'register' | 'forgot-password' | 'check-email';
 
@@ -14,6 +36,7 @@ type SignInDialogProps = {
   onResendVerification: (email: string) => Promise<string>;
   onRequestPasswordReset: (email: string) => Promise<string>;
   verificationNotice?: string;
+  reason?: SignInReason;
 };
 
 export default function SignInDialog({
@@ -23,6 +46,7 @@ export default function SignInDialog({
   onResendVerification,
   onRequestPasswordReset,
   verificationNotice = '',
+  reason,
 }: SignInDialogProps) {
   const [mode, setMode] = useState<DialogMode>('login');
   const [busy, setBusy] = useState(false);
@@ -144,12 +168,19 @@ export default function SignInDialog({
 
   const title = mode === 'register' ? 'Create your account'
     : mode === 'forgot-password' ? 'Reset your password'
-      : mode === 'check-email' ? 'Check your email' : 'Welcome back';
+      : mode === 'check-email' ? 'Check your email'
+        : reason ? REASONS[reason].title : 'Welcome back';
 
   return (
     <Modal title={title} onClose={onClose} className="sign-in-dialog">
       {mode === 'login' && (
         <>
+          {reason && (
+            <p className="sign-in-reason">
+              <span className="sign-in-reason-icon"><Icon name={REASONS[reason].icon} size={18} /></span>
+              {REASONS[reason].copy}
+            </p>
+          )}
           {verificationNotice && <p className="auth-notice" role="status">{verificationNotice}</p>}
           {providerButtons}
           <form className="sign-in-form" onSubmit={submitLogin}>
