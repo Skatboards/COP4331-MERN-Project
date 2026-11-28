@@ -40,6 +40,31 @@ paths:
                 properties:
                   status: { type: string, example: ok }
 
+  /api/health/ready:
+    get:
+      tags: [Health]
+      summary: Dependency readiness check
+      description: Performs a bounded, briefly cached database ping and returns no dependency details.
+      responses:
+        '200':
+          description: Required dependencies are ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, example: ok }
+        '503':
+          description: A required dependency is unavailable or did not answer before the timeout
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, example: unavailable }
+
   /api/ping:
     get:
       tags: [Health]
@@ -399,6 +424,38 @@ paths:
                   boards:
                     type: array
                     items: { $ref: '#/components/schemas/Board' }
+
+  /api/boards/today:
+    get:
+      tags: [Boards]
+      summary: Today's board layout
+      description: |
+        The board for today's date on the server (US Eastern by default), so every player
+        gets the same board no matter what their device clock says. No login needed.
+      responses:
+        '200':
+          description: The layout
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BoardLayout' }
+
+  /api/boards/{seed}/layout:
+    get:
+      tags: [Boards]
+      summary: An earlier day's board layout
+      description: |
+        The layout of today's board or an earlier day's board, for the archive. Seeds look like
+        `daily-2026-10-20`. Days after today, dates that do not exist, and other seeds return 404.
+      parameters:
+        - $ref: '#/components/parameters/Seed'
+      responses:
+        '200':
+          description: The layout
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BoardLayout' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/boards/{seed}:
     get:
@@ -824,6 +881,25 @@ components:
         boardsCompleted: { type: integer }
         efficiency: { type: number }
         createdAt: { type: string, format: date-time, description: When the account was made; missed days count from here }
+    BoardLayout:
+      type: object
+      properties:
+        seed: { type: string, example: daily-2026-10-20 }
+        date: { type: string, example: '2026-10-20' }
+        rows: { type: integer, example: 16 }
+        cols: { type: integer, example: 16 }
+        mineCount: { type: integer, example: 40 }
+        mines:
+          type: array
+          description: Cell numbers of the mines, counted row by row from 0
+          items: { type: integer }
+        adjacent:
+          type: array
+          description: For every cell, how many mines touch it
+          items: { type: integer }
+        start:
+          type: integer
+          description: The blank cell opened for free at the start of the game
     AdminUser:
       allOf:
         - $ref: '#/components/schemas/CurrentUser'

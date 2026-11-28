@@ -1,0 +1,34 @@
+meta {
+  name: Get Today Board
+  type: http
+  seq: 19
+}
+
+get {
+  url: {{baseUrl}}/api/boards/today
+  body: none
+  auth: none
+}
+
+script:post-response {
+  if (res.getStatus() === 200) {
+    bru.setVar("todaySeed", res.getBody().seed);
+  }
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("returns a full board", function () {
+    const body = res.getBody();
+    expect(body.seed).to.match(/^daily-\d{4}-\d{2}-\d{2}$/);
+    expect(body.mines).to.have.lengthOf(body.mineCount);
+    expect(body.adjacent).to.have.lengthOf(body.rows * body.cols);
+  });
+}
+
+docs {
+  Today's board layout by the server's date. No login needed. Saves `todaySeed`.
+}

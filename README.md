@@ -20,7 +20,8 @@ Solve the daily minesweeper board! Every player gets the same board each day and
 ├── mongo/init/      MongoDB initialization directory
 ├── deploy/          Droplet deployment notes and scripts
 ├── docs/            Diagrams (system design, data flow, ERD), OAuth setup, API lab walkthrough
-├── compose.yaml     Local development stack
+├── compose.dev.yaml   Local development stack
+├── compose.prod.yaml  Optimized production stack
 └── .github/         Continuous integration configuration
 ```
 
@@ -40,30 +41,44 @@ Copy the example environment file before starting the stack:
 cp .env.example .env
 ```
 
+This `.env` is for local development only. Production configuration comes from
+the GitHub `production` environment and is installed as a protected,
+release-specific file described in [deploy/README.md](deploy/README.md).
+
 | Variable | Default | Description |
 | --- | --- | --- |
+| `IMAGE_TAG` | `dev` | Development image tag; deployment overrides it with the exact commit SHA |
 | `CLIENT_PORT` | `5173` | Frontend port exposed on the host |
 | `BACKEND_PORT` | `3000` | Express port exposed on the host |
-| `MONGO_DATABASE` | `GameDB` | MongoDB database name |
-| `MONGO_PORT` | `27017` | MongoDB port exposed on `127.0.0.1` |
+| `MONGO_PORT` | `27017` | Development-only MongoDB port exposed on `127.0.0.1`; production does not publish MongoDB |
+| `DOMAIN` | empty | Optional Vite development allowed-host setting; unused in production |
+| `JWT_EXPIRES_IN` | `1d` | Login-token lifetime accepted by `jsonwebtoken`, such as `12h`, `1d`, or `7d` |
+| `APP_URL` | `http://localhost:5173` | Site address used in email links and OAuth callbacks; production requires the public HTTPS origin |
 | `JWT_SECRET` | placeholder | Secret for signing login tokens. Replace the example's placeholder with your own value (`openssl rand -hex 32`) so logins survive restarts. If empty, a random secret is used per run |
-| `JWT_EXPIRES_IN` | `1d` | How long a login lasts, e.g. `12h` |
 | `SITE_ADMIN_EMAILS` | empty | Comma-separated emails of site admins. Matching verified accounts are promoted on startup and when created (see [docs/admin.md](docs/admin.md)) |
-| `APP_URL` | `http://localhost:5173` | Site address used in the links in emails |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | empty, `587`, `false` | Outgoing mail server. With `SMTP_HOST` empty, emails are printed to the backend log |
-| `MAIL_FROM` | `Sweeple <no-reply@localhost>` | Sender of verification and reset emails |
-| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | empty | Turns on "Continue with GitHub" (see [docs/oauth.md](docs/oauth.md)) |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | empty | Turns on "Continue with Google" |
+| `MAIL_FROM_NAME`, `MAIL_FROM_ADDRESS` | empty | Display name and address for verification and reset emails; both are required when `SMTP_HOST` is set |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | empty | Optional complete pair in development and production; the provider is hidden when both are empty (see [docs/oauth.md](docs/oauth.md)) |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | empty | Optional complete pair in development and production; the provider is hidden when both are empty |
 
 ## Running with Docker Compose
 
 Build and start the complete development stack:
 
 ```bash
-docker compose up --build
+docker compose -f compose.dev.yaml up --build
 ```
 
-The client and server source directories are bind-mounted into their containers. Vite uses filesystem polling and the server uses Nodemon, so source changes should reload without rebuilding the images.
+The client and server source directories are bind-mounted into their containers. Vite uses filesystem polling, and the Docker backend runs Nodemon in legacy polling mode for `server.js` and the runtime source directories so application changes reload reliably through Docker Desktop bind mounts without scanning tests or maintenance scripts. Host-native `npm run dev` keeps Nodemon's normal event-based watcher.
+
+`compose.dev.yaml` is the only Compose file intended for local development. It
+publishes the development ports, mounts source code, runs Vite and Nodemon, and
+loads both MongoDB initialization scripts, including sample data on a new
+volume. `compose.prod.yaml` is used by CI and deployment with an explicit
+protected environment file and immutable image tag. It has no source mounts,
+binds application ports to `127.0.0.1`, excludes sample seed data, and runs the
+compiled client with its minimal locked static-server runtime. Always pass the
+Compose filename explicitly so the environment cannot be selected by accident.
 
 ### Service URLs
 
@@ -72,18 +87,19 @@ The client and server source directories are bind-mounted into their containers.
 | Client | <http://localhost:5173> |
 | Express server | <http://localhost:3000> |
 | Health endpoint | <http://localhost:3000/api/health> |
+| Readiness endpoint | <http://localhost:3000/api/health/ready> |
 | Health endpoint through Vite | <http://localhost:5173/api/health> |
 | MongoDB | `mongodb://127.0.0.1:27017/GameDB` |
 
 Useful commands:
 
 ```bash
-docker compose ps
-docker compose logs --follow
-docker compose down
+docker compose -f compose.dev.yaml ps
+docker compose -f compose.dev.yaml logs --follow
+docker compose -f compose.dev.yaml down
 ```
 
-`docker compose down` preserves the MongoDB volume. Running `docker compose down --volumes` also deletes local database data and cannot be undone.
+`docker compose -f compose.dev.yaml down` preserves the MongoDB volume. Adding `--volumes` also deletes local database data and cannot be undone.
 
 ## Client
 
@@ -139,7 +155,7 @@ npm run set-role -- <username or email> <user|admin|siteadmin>
 
 `npm test` runs the API tests in `backend/tests/` (at least one per endpoint) against a temporary in-memory MongoDB 7.0. It needs no running database; the first run downloads the MongoDB binary.
 
-`npm run set-role` changes an account's role in the database at `MONGODB_URI`; in Compose, run `docker compose exec backend npm run set-role -- alexrivera siteadmin`. See [docs/admin.md](docs/admin.md).
+`npm run set-role` changes an account's role in the database at `MONGODB_URI`; in local Compose, run `docker compose -f compose.dev.yaml exec backend npm run set-role -- alexrivera siteadmin`. See [docs/admin.md](docs/admin.md).
 
 ### Bruno (API requests)
 
@@ -164,6 +180,7 @@ All requests and responses are JSON. The full description is in [backend/openapi
 | Method | Endpoint | Description |
 | --- | --- | --- |
 | `GET` | `/api/health` | Returns `{ "status": "ok" }` |
+| `GET` | `/api/health/ready` | Returns generic dependency readiness, or HTTP 503 when unavailable |
 | `GET` | `/api/ping` | Returns `{ "message": "Hello World" }` |
 | `POST` | `/api/auth/register` | Create an account and email a verification link |
 | `GET` | `/api/auth/verify-email?token=` | The link in the email: verifies, then redirects to the site with `?verified=1` or `0` |
@@ -182,6 +199,8 @@ All requests and responses are JSON. The full description is in [backend/openapi
 | `GET` | `/api/boards` | Most recent boards |
 | `GET` | `/api/boards/:seed` | One board's global stats |
 | `GET` | `/api/boards/:seed/attempts` | Best finished games on a board |
+| `GET` | `/api/boards/today` | Today's board layout by the server's date (no login) |
+| `GET` | `/api/boards/:seed/layout` | Layout of today's or an earlier day's board; `404` for later days |
 | `POST` | `/api/boards/:seed/attempts` | *login* Record a finished game `{ clicks, status: "won" \| "lost", efficiency }`; one per user per board |
 | `GET` | `/api/admin/users?q=&role=&page=` | *admin* Accounts you can see (admins: users only; site admins: everyone) |
 | `GET` | `/api/admin/users/:id` | *admin* One account |
@@ -200,7 +219,10 @@ The backend receives `MONGODB_URI` from Compose and connects with Mongoose. `bac
 
 MongoDB mounts `mongo/init/` at `/docker-entrypoint-initdb.d`. The official image runs supported initialization files only when it creates a new, empty database volume.
 
-`01-create-schema.js` creates the collections and unique indexes, and `02-seed-data.js` inserts sample data. See [mongo/README.md](mongo/README.md).
+Development mounts both initialization scripts: `01-create-schema.js` creates
+the collections and unique indexes, and `02-seed-data.js` inserts sample data.
+Production mounts only `01-create-schema.js`, so a new production database is
+empty. See [mongo/README.md](mongo/README.md).
 
 ## Continuous integration
 
@@ -208,12 +230,13 @@ The workflow in [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on pus
 
 - Uses Node.js 24 for the client and backend
 - Installs dependencies and runs available lint, build, and test scripts (including the backend API tests)
-- Validates the Compose configuration
-- Builds and starts all services
-- Checks the client, Express health endpoint, and Vite proxy
+- Validates the development and production Compose configurations
+- Builds all four development and production images sequentially with Buildx caching
+- Starts the prebuilt production stack and checks real client routes, API liveness, and MongoDB readiness
+- Confirms production starts with no sample records
 - Captures service logs on failure and cleans up the stack
 
-After every check passes on a push to `main`, the `deploy` job SSHes into the DigitalOcean droplet, resets its checkout to `main`, and rebuilds the stack with `compose.yaml`. See [deploy/README.md](deploy/README.md) for droplet setup and the required repository secrets.
+After every check passes on a push to `main`, the deploy job checks out the exact tested commit on the DigitalOcean droplet and rebuilds the backend and client sequentially with `compose.prod.yaml`. It records the release only after the public HTTPS client routes, API liveness, and MongoDB readiness checks succeed. A failed replacement is rolled back to the previous SHA-tagged images and matching runtime configuration, then the complete check set is repeated. See [deploy/README.md](deploy/README.md) for setup and the required GitHub production environment configuration.
 
 ## Troubleshooting
 
@@ -226,8 +249,8 @@ Change the corresponding value in `.env`, or stop the process using the port.
 Inspect its status and logs:
 
 ```bash
-docker compose ps
-docker compose logs <service-name>
+docker compose -f compose.dev.yaml ps
+docker compose -f compose.dev.yaml logs <service-name>
 ```
 
 ### Dependencies are stale inside a container
@@ -235,7 +258,7 @@ docker compose logs <service-name>
 Each container keeps its installed packages in an anonymous volume. After pulling a change to a `package.json`, rebuild and recreate those volumes (the MongoDB data is kept):
 
 ```bash
-docker compose up --build --renew-anon-volumes
+docker compose -f compose.dev.yaml up --build --renew-anon-volumes
 ```
 
 ### Where is the verification email?
@@ -243,13 +266,13 @@ docker compose up --build --renew-anon-volumes
 Without `SMTP_HOST`, the backend prints each email, including its link, to its log:
 
 ```bash
-docker compose logs backend
+docker compose -f compose.dev.yaml logs backend
 ```
 
 ### Everyone is logged out after the backend restarts
 
-`JWT_SECRET` is empty, so the backend made a new random secret at startup and old tokens no longer verify. Set it in `.env` and run `docker compose up -d backend`.
+`JWT_SECRET` is empty, so the backend made a new random secret at startup and old tokens no longer verify. Set it in `.env` and run `docker compose up -f compose.dev.yaml -d backend`.
 
 ### How do I become a site admin?
 
-Add your account's email to `SITE_ADMIN_EMAILS` in `.env` and restart the backend (`docker compose up -d backend`). Your email must be verified. Or run `docker compose exec backend npm run set-role -- <your username> siteadmin`. Sign out and back in (or reload) to see the **Admin** link. Details: [docs/admin.md](docs/admin.md).
+Add your account's email to `SITE_ADMIN_EMAILS` in `.env` and restart the backend (`docker compose -f compose.dev.yaml up -d backend`). Your email must be verified. Or run `docker compose -f compose.dev.yaml exec backend npm run set-role -- <your username> siteadmin`. Sign out and back in (or reload) to see the **Admin** link. Details: [docs/admin.md](docs/admin.md).

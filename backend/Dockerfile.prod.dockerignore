@@ -1,0 +1,16 @@
+*
+!package.json
+!package-lock.json
+!server.js
+!game/
+!game/**
+!lib/
+!lib/**
+!middleware/
+!middleware/**
+!models/
+!models/**
+!routes/
+!routes/**
+!scripts/
+!scripts/set-role.js

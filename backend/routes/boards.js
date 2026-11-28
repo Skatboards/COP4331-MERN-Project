@@ -3,6 +3,7 @@ const { User, Board, BoardAttempt } = require('../models');
 const requireAuth = require('../middleware/auth');
 const { readLimit } = require('./users');
 const { isOnTime, rejectBlockedSeed } = require('../lib/seeds');
+const { todaySeed, isAvailableSeed, layoutOf } = require('../game/board');
 
 const router = express.Router();
 
@@ -144,6 +145,32 @@ router.get('/', async (req, res) => {
     .limit(readLimit(req.query.limit, 10, 50));
 
   res.json({ boards });
+});
+
+// GET /api/boards/today - Today's board layout, by the server's date
+router.get('/today', (req, res) => {
+  res.json(layoutOf(todaySeed()));
+});
+
+// GET /api/boards/:seed/layout - The layout of today's or an earlier day's board
+router.get('/:seed/layout', (req, res) => {
+  if (!isAvailableSeed(req.params.seed)) {
+    return res.status(404).json({ error: 'Board not found' });
+  }
+  res.json(layoutOf(req.params.seed));
+});
+
+// GET /api/boards/today - Today's board layout, by the server's date
+router.get('/today', (req, res) => {
+  res.json(layoutOf(todaySeed()));
+});
+
+// GET /api/boards/:seed/layout - The layout of today's or an earlier day's board
+router.get('/:seed/layout', (req, res) => {
+  if (!isAvailableSeed(req.params.seed)) {
+    return res.status(404).json({ error: 'Board not found' });
+  }
+  res.json(layoutOf(req.params.seed));
 });
 
 // GET /api/boards/:seed - One board's global stats. A board nobody has
