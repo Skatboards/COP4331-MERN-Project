@@ -1,5 +1,3 @@
-import { dateKey, dailySeed } from './minesweeper.ts';
-
 // The first daily board; earlier days cannot be played
 export const LAUNCH_DATE: string =
   (import.meta.env?.VITE_LAUNCH_DATE as string | undefined) ?? '2026-10-15';
@@ -21,11 +19,14 @@ export function seedForDate(date: string): string {
 
 // The player's local day, as YYYY-MM-DD
 export function todayKey(now = new Date()): string {
-  return dateKey(now);
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function todaySeed(now = new Date()): string {
-  return dailySeed(now);
+  return seedForDate(todayKey(now));
 }
 
 // Adds whole days to a YYYY-MM-DD date

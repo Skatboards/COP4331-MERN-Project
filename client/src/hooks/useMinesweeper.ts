@@ -89,7 +89,11 @@ function playRevealSound() {
   }
 }
 
-export function useMinesweeper(seed: string, board: Board, { mode = 'daily', onRecorded }) {
+export function useMinesweeper(
+  seed: string,
+  board: Board,
+  { mode = 'daily', onRecorded }: UseMinesweeperOptions = {},
+) {
   const { token, user, loading: authLoading } = useAuth();
   const par = useMemo(() => parClicks(board), [board]);
   const { minClicks, difficulty } = useMemo(() => boardDifficulty(board), [board]);
