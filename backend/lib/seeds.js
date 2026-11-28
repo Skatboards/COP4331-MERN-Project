@@ -10,6 +10,7 @@
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_LAUNCH_DATE = '2026-10-15';
+const DEFAULT_BOARD_TIMEZONE = 'America/New_York';
 
 function launchDate() {
   const value = process.env.LAUNCH_DATE;
@@ -25,12 +26,33 @@ function seedDate(seed) {
   return date;
 }
 
+// The board day shown to everyone, in the configured board time zone.
+function todayKey(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: process.env.BOARD_TIMEZONE || DEFAULT_BOARD_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(now);
+}
+
+function todaySeed(now) {
+  return `daily-${todayKey(now)}`;
+}
+
 function utcDay(at) {
   return new Date(at).toISOString().slice(0, 10);
 }
 
 function dayNumber(date) {
   return Math.round(Date.parse(`${date}T00:00:00Z`) / DAY_MS);
+}
+
+// Layouts are available for real daily seeds through the configured board day.
+// Unlike playBlock, this deliberately rejects every future board.
+function isLayoutAvailable(seed, now = new Date()) {
+  const date = seedDate(seed);
+  return date !== null && date <= todayKey(now);
 }
 
 // Why a seed cannot be played right now: 'locked', 'before-launch', or null
@@ -49,18 +71,15 @@ function isOnTime(seed, at = new Date()) {
   return Math.abs(dayNumber(utcDay(at)) - dayNumber(date)) <= 1;
 }
 
-// Sends 403 for locked or pre-launch boards; returns true when it did
-function rejectBlockedSeed(seed, res) {
-  const block = playBlock(seed);
-  if (block === 'locked') {
-    res.status(403).json({ error: 'This board is locked until its day', code: 'BOARD_LOCKED' });
-    return true;
-  }
-  if (block === 'before-launch') {
-    res.status(403).json({ error: 'This board is from before Sweeple launched', code: 'BEFORE_LAUNCH' });
-    return true;
-  }
-  return false;
-}
-
-module.exports = { DAY_MS, launchDate, seedDate, utcDay, dayNumber, playBlock, isOnTime, rejectBlockedSeed };
+module.exports = {
+  DAY_MS,
+  launchDate,
+  seedDate,
+  todayKey,
+  todaySeed,
+  utcDay,
+  dayNumber,
+  isLayoutAvailable,
+  playBlock,
+  isOnTime
+};

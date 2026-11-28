@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getGameProgress, saveGameProgress, submitAttempt } from '../api/boards';
 import type { FinalState, PlayMode } from '../api/types';
 import { useAuth } from '../auth/useAuth';
-import { efficiency, generateBoard, parClicks } from '../game/minesweeper.ts';
+import { efficiency, parClicks, type Board } from '../game/minesweeper.ts';
 import { boardDifficulty } from '../game/difficulty.ts';
 import { formatDuration, seedDate, todayKey } from '../game/dates.ts';
 import {
@@ -89,9 +89,8 @@ function playRevealSound() {
   }
 }
 
-export function useMinesweeper(seed: string, { mode = 'daily', onRecorded }: UseMinesweeperOptions = {}) {
+export function useMinesweeper(seed: string, board: Board, { mode = 'daily', onRecorded }) {
   const { token, user, loading: authLoading } = useAuth();
-  const board = useMemo(() => generateBoard(seed), [seed]);
   const par = useMemo(() => parClicks(board), [board]);
   const { minClicks, difficulty } = useMemo(() => boardDifficulty(board), [board]);
   const cellCount = board.rows * board.cols;
