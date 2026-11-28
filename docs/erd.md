@@ -54,6 +54,10 @@ erDiagram
         number efficiency "0-100, 0 when lost"
         string status "in_progress, won, lost"
         date completedAt "nullable"
+        int timeMs "nullable, play time in ms"
+        boolean onTime "finished on the board's day"
+        string mode "daily | archive | random"
+        object finalState "nullable, board as the game ended"
         date createdAt
         date updatedAt
     }
@@ -97,6 +101,8 @@ The stats on `users` and `boards` are kept up to date when a game is recorded (`
 
 - `boards.totalAttempts`, `totalCompletions`, `globalCompletionPercentage`, `averageClicks`, and `averageEfficiency` summarize that board's attempts.
 - `users.totalClicks`, `boardsCompleted`, and `efficiency` summarize that user's attempts.
+
+Streaks are not stored. `GET /api/users/me/attempts` works out `currentStreak` and `longestStreak` from the user's won attempts with `onTime` set (`computeStreaks` in [backend/lib/stats.js](../backend/lib/stats.js)), so catch-up and random games never extend a streak. Missed days are not stored either; the client counts them from the later of `LAUNCH_DATE` and the account's `createdAt`.
 
 When attempts are removed any other way, the totals are rebuilt from the remaining finished attempts by [backend/lib/stats.js](../backend/lib/stats.js). `recomputeBoardStats` handles boards and `recomputeUserStats` handles users. Deleting a user from the admin dashboard (`DELETE /api/admin/users/:id`) deletes their attempts, then recomputes every board they played.
 

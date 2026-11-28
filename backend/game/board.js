@@ -1,8 +1,7 @@
 const ROWS = 16;
 const COLS = 16;
 const MINES = 40;
-
-const DAILY_SEED = /^daily-(\d{4})-(\d{2})-(\d{2})$/;
+const { seedDate } = require('../lib/seeds');
 
 function hashString(str) {
   let h = 1779033703 ^ str.length;
@@ -71,39 +70,6 @@ function generateBoard(seed, rows = ROWS, cols = COLS, mineCount = MINES) {
   return { rows, cols, mineCount, isMine, adjacent, mineIndices, start };
 }
 
-// Today's date on the server, in one time zone for everyone (default US Eastern)
-function todayKey(now = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: process.env.BOARD_TIMEZONE || 'America/New_York',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  }).format(now);
-}
-
-function todaySeed(now) {
-  return `daily-${todayKey(now)}`;
-}
-
-// "2026-11-12" for a real daily seed, otherwise null
-function seedDate(seed) {
-  const match = DAILY_SEED.exec(seed);
-  if (!match) return null;
-  const [, y, m, d] = match;
-  const parsed = new Date(Date.UTC(Number(y), Number(m) - 1, Number(d)));
-  const real =
-    parsed.getUTCFullYear() === Number(y) &&
-    parsed.getUTCMonth() === Number(m) - 1 &&
-    parsed.getUTCDate() === Number(d);
-  return real ? `${y}-${m}-${d}` : null;
-}
-
-// Today and earlier days can be played or viewed; future days cannot
-function isAvailableSeed(seed, now) {
-  const date = seedDate(seed);
-  return date !== null && date <= todayKey(now);
-}
-
 function layoutOf(seed) {
   const board = generateBoard(seed);
   return {
@@ -120,5 +86,5 @@ function layoutOf(seed) {
 
 module.exports = {
   ROWS, COLS, MINES,
-  generateBoard, neighbors, todayKey, todaySeed, seedDate, isAvailableSeed, layoutOf
+  generateBoard, neighbors, layoutOf
 };

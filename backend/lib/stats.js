@@ -15,6 +15,7 @@
 // Values are rounded to 2 decimal places, like the running averages.
 const mongoose = require('mongoose');
 const { Board, BoardAttempt, User } = require('../models');
+const { seedDate, dayNumber, utcDay, isOnTime } = require('./seeds');
 
 const FINISHED = { $in: ['won', 'lost'] };
 
@@ -96,4 +97,34 @@ async function recomputeUserStats(userId) {
   );
 }
 
-module.exports = { recomputeBoardStats, recomputeUserStats };
+// Whether a finished game counts toward a streak. Games recorded before the
+// onTime field fall back to comparing completedAt with the board's date.
+function countsForStreak(attempt) {
+  if (attempt.status !== 'won' || !seedDate(attempt.seed)) return false;
+  if (typeof attempt.onTime === 'boolean') return attempt.onTime;
+  return attempt.completedAt ? isOnTime(attempt.seed, attempt.completedAt) : false;
+}
+
+// Current and longest streaks: runs of consecutive board days won on the
+// day itself. Late catch-ups and random boards never count. The current
+// streak is still alive while its last day is within two days of `now`
+// (UTC), which covers players in every time zone who haven't played today.
+//
+// attempts: [{ seed, status, onTime, completedAt }]
+function computeStreaks(attempts, now = new Date()) {
+  const days = [...new Set(attempts.filter(countsForStreak).map((a) => dayNumber(seedDate(a.seed))))]
+    .sort((a, b) => a - b);
+
+  let longest = 0;
+  let run = 0;
+  for (let i = 0; i < days.length; i++) {
+    run = i > 0 && days[i] === days[i - 1] + 1 ? run + 1 : 1;
+    longest = Math.max(longest, run);
+  }
+
+  const last = days.at(-1);
+  const current = last !== undefined && last >= dayNumber(utcDay(now)) - 2 ? run : 0;
+  return { currentStreak: current, longestStreak: longest };
+}
+
+module.exports = { recomputeBoardStats, recomputeUserStats, computeStreaks, countsForStreak };

@@ -38,6 +38,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
       SITE_ADMIN_EMAILS: ${SITE_ADMIN_EMAILS:-}
+      # First daily board and the time zone when daily boards roll over
+      LAUNCH_DATE: ${LAUNCH_DATE:-2026-10-15}
+      BOARD_TIMEZONE: ${BOARD_TIMEZONE:-America/New_York}
       APP_URL: ${APP_URL:?Set APP_URL to the public HTTPS origin}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}

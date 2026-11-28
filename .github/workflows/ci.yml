@@ -234,6 +234,8 @@ jobs:
           CLIENT_PORT: ${{ vars.CLIENT_PORT }}
           BACKEND_PORT: ${{ vars.BACKEND_PORT }}
           MONGO_DATABASE: ${{ vars.MONGO_DATABASE || 'GameDB' }}
+          LAUNCH_DATE: ${{ vars.LAUNCH_DATE || '2026-10-15' }}
+          BOARD_TIMEZONE: ${{ vars.BOARD_TIMEZONE || 'America/New_York' }}
           APP_URL: ${{ vars.APP_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           JWT_EXPIRES_IN: ${{ vars.JWT_EXPIRES_IN || '1d' }}
@@ -313,7 +315,8 @@ jobs:
           fi
 
           runtime_names=(
-            PUBLIC_URL CLIENT_PORT BACKEND_PORT MONGO_DATABASE APP_URL
+            PUBLIC_URL CLIENT_PORT BACKEND_PORT MONGO_DATABASE
+            LAUNCH_DATE BOARD_TIMEZONE APP_URL
             JWT_SECRET JWT_EXPIRES_IN SITE_ADMIN_EMAILS
             SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS
             MAIL_FROM_NAME MAIL_FROM_ADDRESS

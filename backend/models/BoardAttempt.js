@@ -54,6 +54,33 @@ const boardAttemptSchema = new mongoose.Schema(
     completedAt: {
       type: Date,
       default: null
+    },
+
+    // Time spent playing in milliseconds; null for untimed games
+    timeMs: {
+      type: Number,
+      default: null,
+      min: 0
+    },
+
+    // Finished on the board's own day (see lib/seeds.js). Unset on games
+    // recorded before this field; lib/stats.js then works it out from
+    // completedAt.
+    onTime: {
+      type: Boolean
+    },
+
+    // Where the game was played from
+    mode: {
+      type: String,
+      enum: ['daily', 'archive', 'random'],
+      default: 'daily'
+    },
+
+    // The board as the finished game left it: { revealed, flags, explodedAt }
+    finalState: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null
     }
   },
   {

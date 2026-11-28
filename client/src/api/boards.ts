@@ -1,27 +1,27 @@
 import { apiRequest } from './client';
-import type { Attempt, Board, BoardAttempt } from './types';
 import type { Board as GameBoard } from '../game/minesweeper';
+import type { Attempt, Board, BoardAttempt, FinishedGame, PlayedGame } from './types';
 import type { GameState } from '../game/state';
 
 export function getBoards(limit = 10) {
   return apiRequest<{ boards: Board[] }>(`/boards?limit=${limit}`);
 }
 
+// Boards nobody has finished yet come back with zeroed stats
 export function getBoard(seed: string) {
   return apiRequest<{ board: Board }>(`/boards/${encodeURIComponent(seed)}`);
 }
 
-export function getBoardAttempts(seed: string, limit = 10) {
+// 'result': won first, then fewest clicks, then fastest.
+// 'efficiency': won first, then efficiency, then clicks.
+export function getBoardAttempts(seed: string, limit = 10, sort: 'result' | 'efficiency' = 'result') {
+  const query = new URLSearchParams({ limit: String(limit), sort });
   return apiRequest<{ seed: string; attempts: BoardAttempt[] }>(
-    `/boards/${encodeURIComponent(seed)}/attempts?limit=${limit}`,
+    `/boards/${encodeURIComponent(seed)}/attempts?${query}`,
   );
 }
 
-export function submitAttempt(
-  token: string,
-  seed: string,
-  result: { clicks: number; status: 'won' | 'lost'; efficiency?: number; completionPercentage: number },
-) {
+export function submitAttempt(token: string, seed: string, result: FinishedGame) {
   return apiRequest<{ attempt: Attempt; board: Board }>(
     `/boards/${encodeURIComponent(seed)}/attempts`,
     { method: 'POST', body: result, token },
@@ -29,7 +29,7 @@ export function submitAttempt(
 }
 
 export function getGameProgress(token: string, seed: string) {
-  return apiRequest<{ game: GameState | null; played: { status: 'won' | 'lost'; clicks: number } | null }>(
+  return apiRequest<{ game: GameState | null; played: PlayedGame | null }>(
     `/boards/${encodeURIComponent(seed)}/progress`, { token },
   );
 }

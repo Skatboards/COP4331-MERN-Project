@@ -1,7 +1,7 @@
 const { describe, test } = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  COLS, MINES, ROWS, generateBoard, isAvailableSeed, layoutOf, neighbors, seedDate, todayKey, todaySeed
+  COLS, MINES, ROWS, generateBoard, layoutOf, neighbors
 } = require('../game/board');
 
 const CELLS = ROWS * COLS;
@@ -66,41 +66,6 @@ describe('generateBoard', () => {
 
   test('too many mines is rejected', () => {
     assert.throws(() => generateBoard('x', 4, 4, 10));
-  });
-});
-
-describe('server date', () => {
-  test('rolls over at midnight US Eastern by default', () => {
-    assert.equal(todaySeed(new Date('2026-11-13T04:59:00Z')), 'daily-2026-11-12');
-    assert.equal(todaySeed(new Date('2026-11-13T05:00:00Z')), 'daily-2026-11-13');
-  });
-
-  test('the time zone can be changed', () => {
-    const before = process.env.BOARD_TIMEZONE;
-    process.env.BOARD_TIMEZONE = 'UTC';
-    try {
-      assert.equal(todayKey(new Date('2026-11-13T00:30:00Z')), '2026-11-13');
-    } finally {
-      if (before === undefined) delete process.env.BOARD_TIMEZONE;
-      else process.env.BOARD_TIMEZONE = before;
-    }
-  });
-
-  test('only real dates are daily seeds', () => {
-    assert.equal(seedDate('daily-2026-11-12'), '2026-11-12');
-    assert.equal(seedDate('daily-2026-02-30'), null);
-    assert.equal(seedDate('daily-1'), null);
-    assert.equal(seedDate('anything'), null);
-  });
-
-  test('today and earlier are available, later days are not', () => {
-    const now = new Date('2026-11-12T17:00:00Z');
-    assert.equal(isAvailableSeed('daily-2026-11-12', now), true);
-    assert.equal(isAvailableSeed('daily-2026-11-11', now), true);
-    assert.equal(isAvailableSeed('daily-2026-11-13', now), false);
-    assert.equal(isAvailableSeed('daily-2027-01-01', now), false);
-    assert.equal(isAvailableSeed('daily-2026-02-30', now), false);
-    assert.equal(isAvailableSeed('test-1', now), false);
   });
 });
 

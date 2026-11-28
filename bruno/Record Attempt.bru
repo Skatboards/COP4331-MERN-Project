@@ -18,7 +18,10 @@ body:json {
   {
     "clicks": 42,
     "status": "won",
-    "efficiency": 85.5
+    "efficiency": 85.5,
+    "timeMs": 201000,
+    "mode": "daily",
+    "finalState": { "revealed": [0, 1, 2], "flags": [], "explodedAt": null }
   }
 }
 
@@ -42,6 +45,7 @@ tests {
     const body = res.getBody();
     expect(body.attempt.status).to.equal("won");
     expect(body.board.seed).to.equal(bru.getVar("recordSeed"));
+    expect(body.attempt.timeMs).to.equal(201000);
   });
 }
 
