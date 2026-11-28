@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateBoard, optimalClicks } from '../src/game/minesweeper.ts';
+import { optimalClicks } from '../src/game/minesweeper.ts';
 import { HARD_FROM, MEDIUM_FROM, boardDifficulty, difficultyFor, minClicksNeeded } from '../src/game/difficulty.ts';
+import { generateBoard } from './fixtures.ts';
 
 test('minClicksNeeded is the existing optimal-click count', () => {
   const board = generateBoard('daily-2026-11-12');

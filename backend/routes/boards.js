@@ -2,7 +2,8 @@ const express = require('express');
 const { User, Board, BoardAttempt } = require('../models');
 const requireAuth = require('../middleware/auth');
 const { readLimit } = require('./users');
-const { isOnTime, rejectBlockedSeed } = require('../lib/seeds');
+const { isLayoutAvailable, isOnTime, playBlock, todaySeed } = require('../lib/seeds');
+const { layoutOf } = require('../game/board');
 
 const router = express.Router();
 
@@ -52,6 +53,20 @@ function emptyBoard(seed) {
     averageEfficiency: 0,
     createdAt: null
   };
+}
+
+// Translate the pure seed policy into the API's 403 responses.
+function rejectBlockedSeed(seed, res) {
+  const block = playBlock(seed);
+  if (block === 'locked') {
+    res.status(403).json({ error: 'This board is locked until its day', code: 'BOARD_LOCKED' });
+    return true;
+  }
+  if (block === 'before-launch') {
+    res.status(403).json({ error: 'This board is from before Sweeple launched', code: 'BEFORE_LAUNCH' });
+    return true;
+  }
+  return false;
 }
 
 // GET /api/boards/:seed/progress - Resume this user's game
@@ -144,6 +159,19 @@ router.get('/', async (req, res) => {
     .limit(readLimit(req.query.limit, 10, 50));
 
   res.json({ boards });
+});
+
+// GET /api/boards/today - Today's board layout, by the server's date
+router.get('/today', (req, res) => {
+  res.json(layoutOf(todaySeed()));
+});
+
+// GET /api/boards/:seed/layout - The layout of today's or an earlier day's board
+router.get('/:seed/layout', (req, res) => {
+  if (!isLayoutAvailable(req.params.seed)) {
+    return res.status(404).json({ error: 'Board not found' });
+  }
+  res.json(layoutOf(req.params.seed));
 });
 
 // GET /api/boards/:seed - One board's global stats. A board nobody has
