@@ -8,13 +8,12 @@ import CompareBars from '../components/CompareBars';
 import StatTile from '../components/StatTile';
 import ShareDialog from '../components/ShareDialog';
 import Icon from '../components/Icon';
-import { getBoardAttempts } from '../api/boards';
+import { getBoardAttempts, getBoardLayout, type LoadedBoard } from '../api/boards';
 import { getMyAttempt } from '../api/users';
 import type { Board as BoardStats, BoardAttempt, MyBoardAttempt } from '../api/types';
 import { useAuth } from '../auth/useAuth';
 import { useMinesweeper } from '../hooks/useMinesweeper';
 import { useBoardStats } from '../hooks/useBoardStats';
-import { generateBoard } from '../game/minesweeper.ts';
 import { boardDifficulty } from '../game/difficulty.ts';
 import {
   LAUNCH_DATE, addDays, boardTitle, formatDate, formatDuration, isFutureDate, seedDate, seedForDate, todayKey,
@@ -56,13 +55,17 @@ function OnTheDay({ stats }: { stats: BoardStats | null }) {
 }
 
 // Playing a past board (or a shared board for guests)
-function PlayPast({ seed, onRecorded }: { seed: string; onRecorded: () => void }) {
+function PlayPast({ seed, board, onRecorded }: {
+  seed: string;
+  board: LoadedBoard['board'];
+  onRecorded: () => void;
+}) {
   const [recorded, setRecorded] = useState(0);
   const handleRecorded = useCallback(() => {
     setRecorded((value) => value + 1);
     onRecorded();
   }, [onRecorded]);
-  const game = useMinesweeper(seed, { mode: 'archive', onRecorded: handleRecorded });
+  const game = useMinesweeper(seed, board, { mode: 'archive', onRecorded: handleRecorded });
   const stats = useBoardStats(seed, recorded);
   const date = seedDate(seed);
   return (
@@ -79,9 +82,12 @@ type ViewMode = 'final' | 'solution';
 
 // A finished game: the board as left or the full solution, and how the
 // game compares with everyone else's
-function PlayedBoard({ seed, attempt }: { seed: string; attempt: MyBoardAttempt }) {
+function PlayedBoard({ seed, board, attempt }: {
+  seed: string;
+  board: LoadedBoard['board'];
+  attempt: MyBoardAttempt;
+}) {
   const { user } = useAuth();
-  const board = useMemo(() => generateBoard(seed), [seed]);
   const { minClicks, difficulty } = useMemo(() => boardDifficulty(board), [board]);
   const stats = useBoardStats(seed);
   const [view, setView] = useState<ViewMode>(attempt.finalState ? 'final' : 'solution');
@@ -194,10 +200,31 @@ export default function ArchiveBoardPage() {
   const seed = isValid ? routeSeed : 'invalid-seed';
   const date = seedDate(seed);
   const [mine, setMine] = useState<{ key: string; attempt: MyBoardAttempt | null } | null>(null);
+  const [layout, setLayout] = useState<{ key: string; loaded: LoadedBoard | null; error: string } | null>(null);
   const [reload, setReload] = useState(0);
+  const [layoutReload, setLayoutReload] = useState(0);
   const [startedFor, setStartedFor] = useState<string | null>(null);
   const requestKey = `${token}:${seed}:${reload}`;
+  const layoutKey = `${seed}:${layoutReload}`;
   const refresh = useCallback(() => setReload((value) => value + 1), []);
+
+  useEffect(() => {
+    if (!isValid || !date || date === todayKey() || isFutureDate(date) || date < LAUNCH_DATE) return;
+    let active = true;
+    getBoardLayout(seed)
+      .then((loaded) => {
+        if (active) setLayout({ key: layoutKey, loaded, error: '' });
+      })
+      .catch((requestError: unknown) => {
+        if (!active) return;
+        setLayout({
+          key: layoutKey,
+          loaded: null,
+          error: requestError instanceof Error ? requestError.message : 'Could not load this board.',
+        });
+      });
+    return () => { active = false; };
+  }, [isValid, seed, date, layoutKey]);
 
   useEffect(() => {
     if (!token || !isValid) return;
@@ -235,8 +262,26 @@ export default function ArchiveBoardPage() {
   }
 
   const loadedMine = mine?.key === requestKey ? mine : null;
+  const loadedLayout = layout?.key === layoutKey ? layout : null;
   const finished = loadedMine?.attempt && loadedMine.attempt.status !== 'in_progress' ? loadedMine.attempt : null;
   const inProgress = loadedMine?.attempt?.status === 'in_progress';
+  const board = loadedLayout?.loaded?.board ?? null;
+
+  if (!board) {
+    return (
+      <main className="subpage archive-board-page">
+        <DayNav date={date} />
+        {loadedLayout?.error ? (
+          <section className="empty-state api-error-state" role="alert">
+            <p>{loadedLayout.error}</p>
+            <button className="text-button" type="button" onClick={() => setLayoutReload((value) => value + 1)}>Try again</button>
+          </section>
+        ) : (
+          <p className="api-state" role="status">Loading this board…</p>
+        )}
+      </main>
+    );
+  }
 
   return (
     <main className="subpage archive-board-page">
@@ -246,12 +291,12 @@ export default function ArchiveBoardPage() {
       ) : !user ? (
         <>
           <p className="auth-notice guest-note">You’re playing as a guest. Sign in to save this game to your archive.</p>
-          <PlayPast seed={seed} onRecorded={refresh} />
+          <PlayPast seed={seed} board={board} onRecorded={refresh} />
         </>
       ) : finished ? (
-        <PlayedBoard seed={seed} attempt={finished} />
+        <PlayedBoard seed={seed} board={board} attempt={finished} />
       ) : inProgress || startedFor === seed ? (
-        <PlayPast seed={seed} onRecorded={refresh} />
+        <PlayPast seed={seed} board={board} onRecorded={refresh} />
       ) : (
         <section className="board-card missed-intro" aria-labelledby="missed-day-title">
           <span className="eyebrow">PAST PUZZLE · {formatDate(date, 'weekday').toUpperCase()}</span>
